@@ -10,12 +10,20 @@ provide: Events
 ;; Saucer.Events
 ;; -------------
 
-;; Currently a class but not sure on how to the API will be finalized.
+;; A class to extend from in order to provide a custom event channel. You may
+;; bind a callback to an event with `on` or remove with `off`; `trigger`-ing an
+;; event fires all callbacks in succession.
+;;
+;;    class Counter < Event:
+;;       cuonter = 0
+;;    my-counter = Counter()
+;;    my-counter.on(.count) with -> my-counter.counter += 1
+;;    my-counter.trigger(.count)
+;;
 class Events:
    ;; Bind an event to a `cb` function.  Passing `"all"` will bind
    ;; the callback to all events fired.
    on = (name, cb, context) -> internal-on(@, name, cb, context)
-   bind = this.on
 
 
    ;; Inversion-of-control version of `on`. Tell *this* object to listen to
@@ -46,7 +54,6 @@ class Events:
          listeners = @_listeners
       }
       @
-   unbind = this.off
 
 
    ;; Tell this object to stop listening to either specific events ... or
