@@ -1,0 +1,15 @@
+require:
+   ;;underscore -> extend
+   jquery as $
+   ./events -> Events
+provide: Saucer
+
+
+class Saucer < Events:
+
+   $ = $
+
+
+saucer = Saucer()
+saucer.on .expand: -> print "Expanded!"
+saucer.trigger(.expand)

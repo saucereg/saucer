@@ -1,0 +1,88 @@
+require:
+   underscore ->
+      bind as _bind
+      once as _once
+      is-empty, size
+   ./events-helpers ->
+      internal-on, events-api, on-api, off-api, trigger-api, once-map
+provide: Events
+
+;; Saucer.Events
+;; -------------
+
+;; Currently a class but not sure on how to the API will be finalized.
+class Events:
+   ;; Bind an event to a `cb` function.  Passing `"all"` will bind
+   ;; the callback to all events fired.
+   on = (name, cb, context) -> internal-on(@, name, cb, context)
+   bind = this.on
+
+
+   ;; Inversion-of-control version of `on`. Tell *this* object to listen to
+   ;; an event in another object... keeping track of what it's listening to
+   ;; for easier unbinding later.
+   listen-to = (obj, name, cb) ->
+      if not obj: return this
+      id = obj._listen-id or obj._listen-id = Symbol(.listen-id)
+      listening-to = @_listening-to or @_listening-to = {=}
+      var listening = listening-to[id]
+      if not listening-to[id]:
+         this-id = @_listen-id or @_listen-id = Symbol(.listen-id)
+         listening-to[id] =
+            {= obj, obj-id = id, id = this-id, = listening-to, count = 0}
+         listening = listening-to[id]
+      internal-on(obj, name, cb, @, listening)
+      @
+
+
+   ;; Remove one or many callbacks. If `context` is null, removes all
+   ;; callbacks with that function. If `callback` is null, removes all
+   ;; callbacks for the event. If `name` is null, removes all bound
+   ;; callbacks for all events.
+   off = (name, cb, context) ->
+      if not @_events: return this
+      @_events = events-api(off-api, @_events, name, cb, opts) where opts = {
+         context = context
+         listeners = @_listeners
+      }
+      @
+   unbind = this.off
+
+
+   ;; Tell this object to stop listening to either specific events ... or
+   ;; to every object it's currently listening to.
+   stop-listening = (obj, name, cb) ->
+      listening-to = @_listening-to
+      if not listening-to: return this
+      ids = if {obj; { obj._listen-id }; keys(listening-to)}
+      ids each id ->
+         if listening-to[id] as listening: listening.obj.off(name, cb, @)
+      if is-empty? listening-to: @_listening-to = undefined
+      @
+
+
+   ;; Bind an event to only be triggered a single time. After the first time
+   ;; the callback is invoked, its listener will be removed. If multiple events
+   ;; are passed in using the space-separated syntax, the handler will fire
+   ;; once for each event, not once for a combination of all events.
+   once = (name, cb, context) ->
+      @on(events, undefined, context) where events =
+         ;; Map the event into a `{event: once}` object.
+         events-api(once-map, {=}, name, cb, _bind(@off, @))
+
+
+   ;; Inversion-of-control versions of `once`.
+   listen-to-once = (obj, name, cb) ->
+      @listen-to(obj, events) where events =
+         ;; Map the event into a `{event: once}` object.
+         events-api(once-map, {=}, name, cb, _bind(@stop-listening, @, obj))
+
+
+   ;; Trigger one or many events, firing all bound callbacks. Callbacks are
+   ;; passed the same arguments as `trigger` is, apart from the event name
+   ;; (unless you're listening on `"all"`, which will cause your callback to
+   ;; receive the true name of the event as the first argument).
+   trigger = (name, *args) ->
+      if @_events: return this
+      events-api(trigger-api, @_events, name, undefined, args)
+      @

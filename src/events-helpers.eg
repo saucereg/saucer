@@ -1,0 +1,128 @@
+require:
+   underscore -> {bind as _bind, is-empty, once as _once, size}
+
+provide:
+   internal-on, once-map, events-api, on-api, off-api, trigger-api
+
+
+;; Guard the `listening` argument from the public api
+internal-on = (obj, name, cb, context, listening) ->
+   obj._events =
+      events-api(on-api, obj._events or {=}, name, cb, l) where l = {
+         context = context
+         ctx = obj
+         listening = listening
+      }
+   if listening:
+      listeners = obj._listeners or obj._listeners = {=}
+      listeners[listening.id] = listening
+   obj
+
+
+;; Reduces the event callbacks into a map of `{event: onceWrapper}`.
+;; `offer` unbinds the `onceWrapper` after it has been called.
+once-map = (map, name, cb, offer) ->
+   if cb:
+      once = _once with -> [offer(name, once); cb.apply(this, arguments)]
+      {once.callback, map[name]} = {cb, once}
+   map
+
+
+;; Iterates over the standard `event, callback` (as well as the fancy multiple
+;; space-separated events `"change blur", callback` and jQuery-style event
+;; maps `{event: callback}`).
+events-api = (iteree, var evts, name, cb, opts) -> pass
+   match name:
+      Object?
+      \ and not undefined? cb
+      \ and .context in opts
+      \ and undefined? opts.context
+      \ and names is keys(name) ->
+         ;; Handle event maps
+         opts.context = cb
+         names each name ->
+            events-api(iteree, evts, name, name[name], opts)
+      R"\s+"? and names is name.split(R"\s+") ->
+         ;; Handle space sep. event names by delegating them individually.
+         names each name ->
+            iteree(evts, name, cb, opts)
+      else ->
+         ;; Standard events
+         iteree(evts, name, cb, opts)
+
+;; The reducing API that adds a callback to the `events` object.
+on-api = (evts, name, cb, opts) ->
+   if cb:
+      handlers = evts[name] or evts[name] = {}
+      {=> context, => ctx, => listening} = opts
+      if listening: listening.count++
+      handlers.push with {
+         callback = cb
+         context = context
+         ctx = context or ctx
+         listening = listening
+      }
+   evts
+
+;; The reducing API that removes a callback from the `events` object.
+off-api = (evts, name, cb, opts) ->
+   if not evts: return
+   var listening = undefined
+   {=> context, => listeners} = opts
+
+   ;; Delete all events listeners and "drop" events
+   if not name and not cb and not context:
+      keys(listeners) each id ->
+         listening = listeners[id]
+         delete listeners[listening.id]
+         delete listening.listening-to[listening.obj-id]
+      return
+
+   names = if {name; {name}; keys(evts)}
+   names each name ->
+      handlers = evts[name]
+
+      ;; Bail out if there are no events stored
+      if not handlers: break
+
+      ;; Replace events if there are any reminaing. Otherwise, clean up.
+      remaining = {}
+      handlers each handler ->
+         if cb and cb != handler.callback
+         \     and cb != handler.callback._callback
+         \     or  context and context != handler.context:
+            remaining.push(handler)
+         else:
+            listening = handler.listening
+            if listening and listening.count == 0:
+               delete listeners[listening.id]
+               delete listening.listening-to[listening.obj-id]
+
+      ;; Update tail event if the list has any events. Otherwise, clean up.
+      if remaining.length: evts[name] = remaining
+      else: delete evts[name]
+   if size(evts): return evts
+
+;; Handles triggering the appropriate event callbacks.
+trigger-api = (obj-evts, name, cb, args) ->
+   if obj-evts:
+      events = obj-evts[name]
+      var all-events = obj-evts.all
+      if events and all-events: all-events = all-events.slice()
+      if events: trigger-events(events, args)
+      if all-events: trigger-events(all-events, {name}.concat(args))
+   obj-evts
+
+
+;; A generalized translation of the optimized version of this function in
+;; Backbone.  Not sure if it's effective or not but it is readable.
+trigger-events = (evts, args) ->
+   match args.length:
+      0 -> evts each event -> event.callback.call(event.ctx)
+      1 -> evts each event -> event.callback.call(event.ctx) with
+         [args[0]]
+      2 -> evts each event -> event.callback.call(event.ctx) with
+         [args[0], args[1]]
+      3 -> evts each event -> event.callback.call(event.ctx) with
+         [args[0], args[1], args[2]]
+      else -> evts each event -> event.callback.call(event.ctx, args)
