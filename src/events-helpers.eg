@@ -8,7 +8,7 @@ provide:
 ;; Guard the `listening` argument from the public api
 internal-on = (obj, name, cb, context, listening) ->
    obj._events =
-      events-api(on-api, obj._events or {=}, name, cb, l) where l = {
+      events-api(on-api, obj._events or {=}, name, cb, opts) where opts = {
          context = context
          ctx = obj
          listening = listening
@@ -31,38 +31,32 @@ once-map = (map, name, cb, offer) ->
 ;; Iterates over the standard `event, callback` (as well as the fancy multiple
 ;; space-separated events `"change blur", callback` and jQuery-style event
 ;; maps `{event: callback}`).
-events-api = (iteree, evts, name, cb, opts) ->
-   match name:
-      Object?
-      \ and not undefined? cb
-      \ and .context in opts
-      \ and undefined? opts.context
-      \ and names is keys(name) ->
-         ;; Handle event maps
+events-api = (iteree, var events, match name, cb, opts) ->
+   Object? and names is keys(name) ->
+      ;; Handle event maps
+      if not Function? cb
+      \ and opts.has-property(.context) and undefined? opts.context:
          opts.context = cb
-         names each name ->
-            events-api(iteree, evts, name, name[name], opts)
-      R"\s+"? and names is name.split(R"\s+") ->
-         ;; Handle space sep. event names by delegating them individually.
-         names each name ->
-            iteree(evts, name, cb, opts)
-      else ->
-         ;; Standard events
-         iteree(evts, name, cb, opts)
+      names each n -> events = events-api(iteree, events, n, name[n], opts)
+      events
+   R"\s+"? and names is name.split(R"\s+") ->
+      ;; Handle space sep. event names by delegating them individually.
+      names each name ->
+         events = iteree(events, name, cb, opts)
+      events
+   else ->
+      ;; Standard events
+      events = iteree(events, name, cb, opts)
+      events
 
 ;; The reducing API that adds a callback to the `events` object.
-on-api = (evts, name, cb, opts) ->
-   if cb:
-      handlers and evts[name] = evts[name] or {}
-      {=> context, => ctx, => listening} = opts
-      if listening: listening.count++
-      handlers.push with {
-         callback = cb
-         context = context
-         ctx = context or ctx
-         listening = listening
-      }
-   evts
+on-api = (events, name, Function? callback, opts) ->
+   handlers = events[name] or {}
+   opts as {=> context, => ctx, => listening}
+   if Number? listening: listening.count++
+   handlers.push({ = callback, = context, ctx = context or ctx, = listening })
+   events[name] = handlers
+   events
 
 ;; The reducing API that removes a callback from the `events` object.
 off-api = (evts, name, cb, opts) ->

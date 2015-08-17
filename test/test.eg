@@ -6,14 +6,88 @@ require-macros:
       assert, asserts
 
 require:
-   ../src/saucer -> Events
+   ../src/saucer -> Saucer
+
+class CounterClass < Saucer.Events:
+   counter = 0
 
 describe "Saucer.Events":
 
-   it "permeates everything":
-      assert joy("Everything") == "Everything is really nice!"
+   it "provides `on` to add events and `trigger` to trigger them":
+      obj = CounterClass()
+      obj.on(.event) with -> obj.counter += 1
+      obj.trigger(.event)
+      assert obj.counter == 1
+      0..3 each _ -> obj.trigger(.event)
+      assert obj.counter == 5
 
-   asserts:
-      joy() == "Earl Grey is really nice!"
-      joy("The cat") == "The cat is really nice!"
-      joy("Joy") == "Joy is really nice!"
+   it "can bind and trigger multiple events":
+      obj = CounterClass()
+      obj.on("a b c") with -> obj.counter += 1
+
+      ;; FIXME: This __doesn't__ trigger `a` properly
+      obj.trigger(.a)
+      assert obj.counter == 1
+
+      obj.trigger("a b")
+      assert obj.counter == 3
+
+      obj.trigger(.c)
+      assert obj.counter == 4
+
+      obj.off("a c")
+      obj.trigger("a b c")
+      assert obj.counter == 5
+
+   it "can bind and trigger events with an event map":
+      obj = CounterClass()
+      method increment = -> @counter += 1
+      obj.on(evt-map, obj) where evt-map = {
+         a = increment
+         b = increment
+         c = increment
+      }
+
+      obj.trigger(.a)
+      assert obj.counter === 1
+
+      obj.trigger("a b")
+      assert obj.counter === 3
+
+      obj.trigger(.c)
+      assert obj.counter === 4
+
+      obj.off(off-evt-map, obj) where off-evt-map = {
+         a = increment
+         b = increment
+      }
+      obj.trigger("a b c")
+      assert obj.counter === 5
+
+   it "can bind and trigger multiple event names with event maps":
+      obj = CounterClass()
+      method increment = -> @counter += 1
+
+      obj.on({ "a b c" => increment })
+
+      obj.trigger(.a)
+      assert obj.counter === 1
+
+      obj.trigger("a b")
+      assert obj.counter === 3
+
+      obj.trigger(.c)
+      assert obj.counter === 4
+
+      obj.off({ "a c" => increment })
+
+      obj.trigger("a b c")
+      assert obj.counter === 5
+
+   it "can bind and trigger with event map and a context":
+      obj = CounterClass()
+      context = {}
+
+      obj.on(evt-map, context).trigger(.a) where evt-map = {
+         a = -> assert this === context
+      }

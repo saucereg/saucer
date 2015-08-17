@@ -24,7 +24,7 @@ class Events:
    ;; Bind an event to a `cb` function.  Passing `"all"` will bind
    ;; the callback to all events fired.
    on = (name, cb, context) -> internal-on(@, name, cb, context)
-
+   ;; TODO: add `bind` alias
 
    ;; Inversion-of-control version of `on`. Tell *this* object to listen to
    ;; an event in another object... keeping track of what it's listening to
@@ -90,7 +90,6 @@ class Events:
    ;; (unless you're listening on `"all"`, which will cause your callback to
    ;; receive the true name of the event as the first argument).
    trigger = (name, *args) ->
-      if not @_events:
-         return this
+      if not @_events: return this
       events-api(trigger-api, @_events, name, undefined, args)
       @
