@@ -11,5 +11,5 @@ class Saucer < Events:
 
 
 saucer = Saucer()
-saucer.on .expand: -> print "Expanded!"
+saucer.on(.expand) with -> print "Expanded!"
 saucer.trigger(.expand)

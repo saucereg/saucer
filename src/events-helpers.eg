@@ -14,7 +14,7 @@ internal-on = (obj, name, cb, context, listening) ->
          listening = listening
       }
    if listening:
-      listeners = obj._listeners or obj._listeners = {=}
+      listeners and obj._listeners = obj._listeners or {=}
       listeners[listening.id] = listening
    obj
 
@@ -31,7 +31,7 @@ once-map = (map, name, cb, offer) ->
 ;; Iterates over the standard `event, callback` (as well as the fancy multiple
 ;; space-separated events `"change blur", callback` and jQuery-style event
 ;; maps `{event: callback}`).
-events-api = (iteree, var evts, name, cb, opts) -> pass
+events-api = (iteree, evts, name, cb, opts) ->
    match name:
       Object?
       \ and not undefined? cb
@@ -53,7 +53,7 @@ events-api = (iteree, var evts, name, cb, opts) -> pass
 ;; The reducing API that adds a callback to the `events` object.
 on-api = (evts, name, cb, opts) ->
    if cb:
-      handlers = evts[name] or evts[name] = {}
+      handlers and evts[name] = evts[name] or {}
       {=> context, => ctx, => listening} = opts
       if listening: listening.count++
       handlers.push with {
@@ -110,7 +110,7 @@ trigger-api = (obj-evts, name, cb, args) ->
       var all-events = obj-evts.all
       if events and all-events: all-events = all-events.slice()
       if events: trigger-events(events, args)
-      if all-events: trigger-events(all-events, {name}.concat(args))
+      if all-events: trigger-events(all-events, {name} ++ args)
    obj-evts
 
 
