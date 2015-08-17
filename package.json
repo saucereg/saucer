@@ -23,6 +23,7 @@
     "refresh": "earl compile -5vso lib/ src/",
     "compile": "earl compile -5rvso lib/ src/",
     "prepublish": "npm run compile",
+    "deploy": "npm run test && npm run compile && npm publish",
     "test": "mocha"
   }
 }
