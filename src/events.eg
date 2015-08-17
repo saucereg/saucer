@@ -15,7 +15,7 @@ provide: Events
 ;; event fires all callbacks in succession.
 ;;
 ;;    class Counter < Event:
-;;       cuonter = 0
+;;       counter = 0
 ;;    my-counter = Counter()
 ;;    my-counter.on(.count) with -> my-counter.counter += 1
 ;;    my-counter.trigger(.count)
