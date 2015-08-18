@@ -64,8 +64,8 @@ off-api = (events, name, cb, opts) ->
    ;; Delete all events listeners and "drop" events
    if not name and not cb and not context:
       for listener in listeners:
-         listening = listener
-         delete listeners[listening.id]
+         listening = listeners[listener]
+         delete listeners[listener]
          delete listening.listening-to[listening.obj-id]
       return
 
