@@ -41,7 +41,7 @@ Soon there will be documentation available to guide you through using Saucer.
 ### Install
 
 ```
-npm install saucer
+npm install earlgrey-saucer
 ```
 
 # Contributing
