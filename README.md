@@ -9,10 +9,9 @@
 
 <p align="center">
   <a href="http://github.com/madcapjake/byke">
-    <img width=280px  src="https://raw.githubusercontent.com/saucereg/saucer/master/assets/saucer.png">
+    <img width=280px  src="https://raw.githubusercontent.com/saucereg/saucer/master/assets/saucer.png"
   </a>
 </p>
-
 
 <p align="center">
   <b><a href="#about">About</a></b>
@@ -54,6 +53,7 @@ Contributions are _absolutely_ welcome. Check out our [contribution guide](/CONT
 [MIT](http://opensource.org/licenses/MIT) © [Jacob Russo][Author] et [al][contributors]
 :heart:
 
+[ufo](https://thenounproject.com/term/flying-saucer/23930/) by [LeftHandedGraphic](https://thenounproject.com/lefthandedgraphic/) from the Noun Project
 
 [author]: http://madcapjake.com
 [earl-grey-badge]: https://img.shields.io/badge/Earl-Grey-lightgrey.svg?style=flat-square
