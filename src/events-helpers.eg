@@ -8,14 +8,12 @@ provide:
 ;; Guard the `listening` argument from the public api
 internal-on = (obj, name, cb, context, listening) ->
    obj._events =
-      events-api(on-api, obj._events or {=}, name, cb, opts) where opts = {
-         context = context
-         ctx = obj
-         listening = listening
-      }
+      events-api(on-api, obj._events or {=}, name, cb, opts) where
+         opts = {= context, ctx = obj, = listening}
    if listening:
-      listeners and obj._listeners = obj._listeners or {=}
+      listeners = obj._listeners or {=}
       listeners[listening.id] = listening
+      obj._listeners = listeners
    obj
 
 
@@ -59,22 +57,21 @@ on-api = (events, name, Function? callback, opts) ->
    events
 
 ;; The reducing API that removes a callback from the `events` object.
-off-api = (evts, name, cb, opts) ->
-   if not evts: return
+off-api = (events, name, cb, opts) ->
+   if not events: return
    var listening = undefined
-   {=> context, => listeners} = opts
-
+   opts as {=> context, => listeners}
    ;; Delete all events listeners and "drop" events
    if not name and not cb and not context:
-      keys(listeners) each id ->
-         listening = listeners[id]
+      for listener in listeners:
+         listening = listener
          delete listeners[listening.id]
          delete listening.listening-to[listening.obj-id]
       return
 
-   names = if {name; {name}; keys(evts)}
+   names = if {name; {name}; keys(events)}
    names each name ->
-      handlers = evts[name]
+      handlers = events[name]
 
       ;; Bail out if there are no events stored
       if not handlers: break
@@ -93,9 +90,10 @@ off-api = (evts, name, cb, opts) ->
                delete listening.listening-to[listening.obj-id]
 
       ;; Update tail event if the list has any events. Otherwise, clean up.
-      if remaining.length: evts[name] = remaining
-      else: delete evts[name]
-   if size(evts): return evts
+      if remaining.length:
+         events[name] = remaining
+      else: delete events[name]
+   if size(events): return events
 
 ;; Handles triggering the appropriate event callbacks.
 trigger-api = (obj-evts, name, cb, args) ->

@@ -3,6 +3,7 @@ require:
       bind as _bind
       once as _once
       is-empty, size
+      unique-id
    ./events-helpers ->
       internal-on, events-api, on-api, off-api, trigger-api, once-map
 provide: Events
@@ -31,14 +32,22 @@ class Events:
    ;; for easier unbinding later.
    listen-to = (obj, name, cb) ->
       if not obj: return this
-      id and obj._listen-id = obj._listen-id or Symbol(.listen-id)
-      listening-to and @_listening-to = @_listening-to or {=}
+      id and obj._listen-id = obj._listen-id or unique-id(.listen-id)
+      let listening-to = @_listening-to or {=}
       var listening = listening-to[id]
+      ;; This object is not listening to any other events on `obj` yet.
+      ;; Setup the necessary references to track the listening callbacks.
       if not listening-to[id]:
-         this-id and @_listen-id = @_listen-id or Symbol(.listen-id)
-         listening-to[id] =
-            {= obj, obj-id = id, id = this-id, = listening-to, count = 0}
-         listening = listening-to[id]
+         this-id and @_listen-id = @_listen-id or unique-id(.listen-id)
+         listening = {
+            obj = obj
+            obj-id = id
+            id = this-id
+            listening-to = listening-to
+            count = 0
+         }
+         listening as listening-to[id]
+      @_listening-to = listening-to
       internal-on(obj, name, cb, @, listening)
       @
 
@@ -69,9 +78,7 @@ class Events:
 
 
    ;; Bind an event to only be triggered a single time. After the first time
-   ;; the callback is invoked, its listener will be removed. If multiple events
-   ;; are passed in using the space-separated syntax, the handler will fire
-   ;; once for each event, not once for a combination of all events.
+   ;; the callback is invoked, its Object?  for a combination of all events.
    once = (name, cb, context) ->
       @on(events, undefined, context) where events =
          ;; Map the event into a `{event: once}` object.

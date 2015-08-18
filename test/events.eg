@@ -1,0 +1,299 @@
+
+require-macros:
+   earl-mocha ->
+      describe, it, before, after
+      xdescribe, xit
+      assert, asserts
+
+require:
+   underscore -> size
+   ../src/saucer -> Saucer
+
+class CounterClass < Saucer.Events:
+   counter = 0
+
+describe "Saucer.Events":
+
+   it "provides `on` to add events and `trigger` to trigger them":
+      obj = CounterClass()
+      obj.on(.event) with -> obj.counter += 1
+      obj.trigger(.event)
+      assert obj.counter == 1
+      0..3 each _ -> obj.trigger(.event)
+      assert obj.counter == 5
+
+   it "can bind and trigger multiple events":
+      obj = CounterClass()
+      obj.on("a b c") with -> obj.counter += 1
+
+      ;; FIXME: This __doesn't__ trigger `a` properly
+      obj.trigger(.a)
+      assert obj.counter == 1
+
+      obj.trigger("a b")
+      assert obj.counter == 3
+
+      obj.trigger(.c)
+      assert obj.counter == 4
+
+      obj.off("a c")
+      obj.trigger("a b c")
+      assert obj.counter == 5
+
+   it "can bind and trigger events with an event map":
+      obj = CounterClass()
+      method increment = -> @counter += 1
+      obj.on(evt-map, obj) where evt-map = {
+         a = increment
+         b = increment
+         c = increment
+      }
+
+      obj.trigger(.a)
+      assert obj.counter === 1
+
+      obj.trigger("a b")
+      assert obj.counter === 3
+
+      obj.trigger(.c)
+      assert obj.counter === 4
+
+      obj.off(off-evt-map, obj) where off-evt-map = {
+         a = increment
+         b = increment
+      }
+      obj.trigger("a b c")
+      assert obj.counter === 5
+
+   it "can bind and trigger multiple event names with event maps":
+      obj = CounterClass()
+      method increment = -> @counter += 1
+
+      obj.on({ "a b c" => increment })
+
+      obj.trigger(.a)
+      assert obj.counter === 1
+
+      obj.trigger("a b")
+      assert obj.counter === 3
+
+      obj.trigger(.c)
+      assert obj.counter === 4
+
+      obj.off({ "a c" => increment })
+
+      obj.trigger("a b c")
+      assert obj.counter === 5
+
+   it "can bind and trigger with event map and a context":
+      obj = CounterClass()
+      context = {}
+
+      obj.on(evt-map, context).trigger(.a) where evt-map = {
+         a = -> assert this === context
+      }
+
+      obj.off()
+      obj.on(evt-map, this, context).trigger(.a) where evt-map = {
+         a = -> assert this === context
+      }
+
+   it "can listen-to and stop-listening":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      a.listen-to(b, .all, increment)
+      b.trigger(.anything)
+      a.listen-to(b, .all, increment)
+      a.stop-listening()
+      b.trigger(.anything)
+      asserts:
+         a.counter === 1
+         b.counter === 0
+
+   it "can listen-to and stop-listening with event maps":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      a.listen-to(b, { event = increment })
+      b.trigger(.event) ;; a = 1
+      a.listen-to(b, { event2 = increment })
+      b.on(.event2, increment)
+      a.stop-listening(b, { event2 = increment })
+      b.trigger("event event2") ;; a = 2; b = 1
+      b.stop-listening()
+      b.trigger("event event2") ;; a = 3; b = 1
+      asserts:
+         a.counter === 3
+         b.counter === 1
+
+   it "can listen-to and stop-listening with omitted args":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      a.listen-to(b, .event, increment)
+      b.on(.event, increment)
+      a.listen-to(b, .event2, increment)
+      a.stop-listening(null, { event = increment })
+      b.trigger("event event2") ;; a = 1; b = 1
+      b.off()
+      a.listen-to(b, "event event2", increment)
+      a.stop-listening(null, .event)
+      a.stop-listening()
+      b.trigger(.event2)
+      asserts:
+         a.counter === 1
+         b.counter === 1
+
+   it "can listen-to-once and stop-listening":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      method decrement = -> @counter -= 1
+      a.listen-to-once(b, .all, increment)
+      b.trigger(.anything)
+      b.trigger(.anything)
+      a.listen-to-once(b, .all, decrement)
+      a.stop-listening()
+      b.trigger(.anything)
+      asserts:
+         a.counter === 1
+         b.counter === 0
+
+   it "can listen-to, listen-to-once, and stop-listening":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      method decrement = -> @counter -= 1
+      a.listen-to-once(b, .all, increment)
+      b.trigger(.anything)
+      b.trigger(.anything)
+      a.listen-to(b, .all, decrement)
+      b.trigger(.anything)
+      b.trigger(.anything)
+      a.stop-listening()
+      b.trigger(.anything)
+      asserts:
+         a.counter === -1
+         b.counter === 0
+
+   it "can listen-to and stop-listening with event maps":
+      a = CounterClass()
+      b = CounterClass()
+      method increment = -> @counter += 1
+      method decrement = -> @counter -= 1
+      a.listen-to(b) with { change = increment }
+      b.trigger(.change) ;; a = 1
+      a.listen-to(b) with { lower  = decrement }
+      a.listen-to(b) with { higher = increment }
+      b.trigger("higher change") ;; a = 3
+      b.trigger(.lower) ;; a = 2
+      b.trigger(.lower) ;; a = 1
+      a.stop-listening()
+      b.trigger("higher change") ;; a = 1
+      asserts:
+         a.counter === 1
+         b.counter === 0
+
+   it "can listen-to itself":
+      e = CounterClass()
+      method increment = -> @counter += 1
+      e.listen-to(e, .foo, increment)
+      e.trigger(.foo) ;; e = 1
+      assert e.counter === 1
+
+   it "can listen-to itself cleans itself up with stop-listening":
+      e = CounterClass()
+      method increment = -> @counter += 1
+      e.listen-to(e, .foo, increment)
+      e.trigger(.foo)
+      e.stop-listening()
+      e.trigger(.foo)
+      assert e.counter === 1
+
+   it "can stop-listening to clean up references":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      
+      b.on(.event) with -> pass
+      a.listen-to(b, .event, -> pass).stop-listening()
+      asserts:
+         size(b._listening-to) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      a.listenTo(b, 'event', -> pass).stopListening(b);
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      a.listenTo(b, 'event', -> pass).stopListening(b, 'event');
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      fn = -> pass
+      a.listenTo(b, 'event', fn).stopListening(b, 'event', fn);
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+   it "can use stop-listening to clean up references from listen-to-once":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      fn = -> pass
+      a.listen-to-once(b, .event, fn).stop-listening()
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      a.listen-to-once(b, .event, fn).stop-listening(b)
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      a.listen-to-once(b, .event, fn).stop-listening(b, 'event')
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+      a.listen-to-once(b, .event, fn).stop-listening(b, 'event', fn)
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._events.event) === 1
+         size(b._listeners) === 0
+
+   it "can listen-to and use off to clean up references":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      fn = -> pass
+
+      a.listenTo(b, .event, fn)
+      b.off()
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._listeners) === 0
+
+      a.listenTo(b, .event, fn)
+      b.off(.event)
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._listeners) === 0
+
+      a.listenTo(b, .event, fn)
+      b.off(null, fn)
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._listeners) === 0
+
+      a.listenTo(b, .event, fn)
+      b.off(null, null, a)
+      asserts:
+         size(a._listeningTo) === 0
+         size(b._listeners) === 0
