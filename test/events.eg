@@ -214,7 +214,7 @@ describe "Saucer.Events":
    it "can stop-listening to clean up references":
       a = Saucer.Events()
       b = Saucer.Events()
-      
+
       b.on(.event) with -> pass
       a.listen-to(b, .event, -> pass).stop-listening()
       asserts:
@@ -224,20 +224,20 @@ describe "Saucer.Events":
 
       a.listenTo(b, 'event', -> pass).stopListening(b);
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
       a.listenTo(b, 'event', -> pass).stopListening(b, 'event');
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
       fn = -> pass
       a.listenTo(b, 'event', fn).stopListening(b, 'event', fn);
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
@@ -247,29 +247,29 @@ describe "Saucer.Events":
       fn = -> pass
       a.listen-to-once(b, .event, fn).stop-listening()
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
       a.listen-to-once(b, .event, fn).stop-listening(b)
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
       a.listen-to-once(b, .event, fn).stop-listening(b, 'event')
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
       a.listen-to-once(b, .event, fn).stop-listening(b, 'event', fn)
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._events.event) === 1
          size(b._listeners) === 0
 
-   it "can listen-to and use off to clean up references":
+   it "can `listen-to` and use `off` to clean up references":
       a = Saucer.Events()
       b = Saucer.Events()
       fn = -> pass
@@ -277,23 +277,51 @@ describe "Saucer.Events":
       a.listenTo(b, .event, fn)
       b.off()
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._listeners) === 0
 
       a.listenTo(b, .event, fn)
       b.off(.event)
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._listeners) === 0
 
       a.listenTo(b, .event, fn)
       b.off(null, fn)
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._listeners) === 0
 
       a.listenTo(b, .event, fn)
       b.off(null, null, a)
       asserts:
-         size(a._listeningTo) === 0
+         size(a._listening-to) === 0
          size(b._listeners) === 0
+
+   it "can `listen-to` and `stop-listening` can clean up references":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      a.listen-to(b, .all, -> assert true)
+      b.trigger(.anything)
+      a.listen-to(b, .other, -> assert false)
+      a.stop-listening(b, .other)
+      b.trigger(.other)
+      a.stop-listening(b, .all)
+      assert size(a._listening-to) === 0
+
+   it "can `listen-to-once` w/o context and refs are cleaned after event fires":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      a.listen-to-once(b, .all, -> assert true)
+      b.trigger(.anything)
+      assert size(a._listening-to) === 0
+
+   it "can listen-to-once with event map and refs are cleaned":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      a.listen-to-once(b, evt-map) where evt-map = {
+         one = -> assert true
+         two = -> assert false
+      }
+      b.trigger(.one)
+      assert size(a._listening-to) === 1
