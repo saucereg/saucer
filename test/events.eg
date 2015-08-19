@@ -442,3 +442,43 @@ describe "Saucer.Events":
       obj.off()
       obj.on(.event, incr-off).on("event all", incr).trigger(.event)
       assert obj.counter == 2 ;; off does not alter callback list
+
+   it "retrieves `all` cb list after each event":
+      obj = CounterClass()
+      method incr = -> @counter += 1
+      obj.on(.x) with ->
+         obj.on(.y, incr).on(.all, incr)
+      obj.trigger("x y")
+      assert obj.counter === 2
+
+   it "does nothing if no cb is provided":
+      obj = Saucer.Events()
+      obj.on(.test).trigger(.test)
+
+   it "will throw an error if a cb is truthy but not a function":
+      view = Saucer.Events()
+      view.on(.test, .noop)
+      var e = undefined
+      try:
+         view.trigger(.test)
+      catch err: e = err
+      assert not undefined? e
+
+   it "can remove all events for a specific context":
+      obj = Saucer.Events()
+      obj.on("x y all", -> assert true)
+      obj.on("x y all", -> assert false, obj)
+      obj.off(null, null, obj)
+      obj.trigger("x y")
+
+   it "can remove all events from a specific callback":
+      obj = Saucer.Events()
+      method success = -> @msg = .success
+      method failure = -> @err = .failure
+      obj.on("x y all", success)
+      obj.on("x y all", failure)
+      obj.off(null, failure)
+      obj.trigger("x y")
+      asserts:
+         obj.msg === .success
+         obj.err === undefined
