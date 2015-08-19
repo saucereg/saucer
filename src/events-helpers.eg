@@ -48,12 +48,13 @@ events-api = (iteree, var events, match name, cb, opts) ->
       events
 
 ;; The reducing API that adds a callback to the `events` object.
-on-api = (events, name, Function? callback, opts) ->
-   handlers = events[name] or {}
-   opts as {=> context, => ctx, => listening}
-   if listening: listening.count++
-   handlers.push({ = callback, = context, ctx = context or ctx, = listening })
-   events[name] = handlers
+on-api = (events, name, callback, opts) ->
+   if callback:
+      handlers = events[name] or {}
+      opts as {=> context, => ctx, => listening}
+      if listening: listening.count++
+      handlers.push({ = callback, = context, ctx = context or ctx, = listening })
+      events[name] = handlers
    events
 
 ;; The reducing API that removes a callback from the `events` object.

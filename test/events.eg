@@ -325,3 +325,21 @@ describe "Saucer.Events":
       }
       b.trigger(.one)
       assert size(a._listening-to) === 1
+
+   it "can use listen-to-once with event maps and it binds the correct `this`":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      a.listenToOnce(b) with {
+         one = -> assert this === a
+         two = -> assert false
+      }
+      b.trigger(.one)
+
+   it "can listen-to with empty cb and doesn't throw an error":
+      e = Saucer.Events()
+      e.listen-to(e, .foo, undefined)
+      try:
+         e.trigger(.foo)
+      catch e:
+         assert false
+      assert true
