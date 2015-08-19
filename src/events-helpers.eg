@@ -10,18 +10,19 @@ internal-on = (obj, name, cb, context, listening) ->
    obj._events =
       events-api(on-api, obj._events or {=}, name, cb, opts) where
          opts = {= context, ctx = obj, = listening}
-   if listening:
-      listeners = obj._listeners or {=}
-      listeners[listening.id] = listening
-      obj._listeners = listeners
+   if Object? listening:
+      obj._listeners = obj._listeners or {=}
+      obj._listeners[listening.id] = listening
    obj
 
 
 ;; Reduces the event callbacks into a map of `{event: onceWrapper}`.
 ;; `offer` unbinds the `onceWrapper` after it has been called.
-once-map = (map, name, Function? cb, offer) ->
-   once = _once with -> [offer(name, once); cb.apply(this, arguments)]
-   {once.callback, map[name]} = {cb, once}
+once-map = (Object? map, String? name, Function? callback, Function? offer) ->
+   once and map[name] = _once with ->
+      offer(name, once)
+      callback.apply(this, arguments)
+   once._callback = callback
    map
 
 
@@ -29,20 +30,20 @@ once-map = (map, name, Function? cb, offer) ->
 ;; space-separated events `"change blur", callback` and jQuery-style event
 ;; maps `{event: callback}`).
 events-api = (iteree, var events, match name, cb, opts) ->
+   ;; Handle event maps
    Object? and names is keys(name) ->
-      ;; Handle event maps
-      if not Function? cb
+      if not undefined? cb
       \ and opts.has-property(.context) and undefined? opts.context:
          opts.context = cb
       names each n -> events = events-api(iteree, events, n, name[n], opts)
       events
+   ;; Handle space sep. event names by delegating them individually.
    R"\s+"? and names is name.split(R"\s+") ->
-      ;; Handle space sep. event names by delegating them individually.
       names each name ->
          events = iteree(events, name, cb, opts)
       events
+   ;; Standard events
    else ->
-      ;; Standard events
       events = iteree(events, name, cb, opts)
       events
 
@@ -50,7 +51,7 @@ events-api = (iteree, var events, match name, cb, opts) ->
 on-api = (events, name, Function? callback, opts) ->
    handlers = events[name] or {}
    opts as {=> context, => ctx, => listening}
-   if Number? listening: listening.count++
+   if listening: listening.count++
    handlers.push({ = callback, = context, ctx = context or ctx, = listening })
    events[name] = handlers
    events
@@ -60,6 +61,7 @@ off-api = (events, name, cb, opts) ->
    if not events: return
    var listening = undefined
    opts as {=> context, => listeners}
+
    ;; Delete all events listeners and "drop" events
    if not name and not cb and not context:
       for listener in listeners:
@@ -68,19 +70,20 @@ off-api = (events, name, cb, opts) ->
          delete listening.listening-to[listening.obj-id]
       return
 
-   names = if {name; {name}; keys(events)}
-   names each name ->
-      handlers = events[name]
-
+   names =
+      if name: {name}
+      else:    keys(events)
+   names each n ->
+      handlers = events[n]
       ;; Bail out if there are no events stored
-      if not handlers: break
+      if undefined? handlers: break
 
       ;; Replace events if there are any reminaing. Otherwise, clean up.
       remaining = {}
-      handlers each handler ->
-         if cb and cb != handler.callback
-         \     and cb != handler.callback._callback
-         \     or  context and context != handler.context:
+      for handler of handlers:
+         if Function? cb and not cb == handler.callback
+         \               and not cb == handler.callback._callback
+         \ or [context and not context == handler.context]:
             remaining.push(handler)
          else:
             listening = handler.listening
@@ -90,8 +93,8 @@ off-api = (events, name, cb, opts) ->
 
       ;; Update tail event if the list has any events. Otherwise, clean up.
       if remaining.length:
-         events[name] = remaining
-      else: delete events[name]
+         events[n] = remaining
+      else: delete events[n]
    if size(events): return events
 
 ;; Handles triggering the appropriate event callbacks.

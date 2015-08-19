@@ -40,22 +40,24 @@ class Events:
    ;; for easier unbinding later.
    listen-to = (obj, name, cb) ->
       if not obj: return this
-      id and obj._listen-id = obj._listen-id or unique-id(.listen-id)
-      let listening-to = @_listening-to or {=}
-      var listening = listening-to[id]
+      obj._listen-id = obj._listen-id or unique-id(.l)
+      @_listening-to = @_listening-to or {=}
+      var listening = @_listening-to[obj._listen-id]
+
       ;; This object is not listening to any other events on `obj` yet.
       ;; Setup the necessary references to track the listening callbacks.
-      if not listening-to[id]:
-         this-id and @_listen-id = @_listen-id or unique-id(.listen-id)
+      if undefined? @_listening-to[obj._listen-id]:
+         @_listen-id = @_listen-id or unique-id(.l)
          listening = {
             obj = obj
-            obj-id = id
-            id = this-id
-            listening-to = listening-to
+            obj-id = obj._listen-id
+            id = @_listen-id
+            listening-to = @_listening-to
             count = 0
          }
-         listening as listening-to[id]
-      @_listening-to = listening-to
+         @_listening-to[obj._listen-id] = listening
+
+      ;; Bind callbacks on obj and keep track of them on listening
       internal-on(obj, name, cb, @, listening)
       @
 
