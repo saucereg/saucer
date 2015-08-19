@@ -343,3 +343,102 @@ describe "Saucer.Events":
       catch e:
          assert false
       assert true
+
+   it "can trigger all for each event":
+      e = CounterClass()
+      e.a = false
+      e.b = false
+      method f = evt ->
+         @counter += 1
+         if evt == .a: @a = true
+         if evt == .b: @b = true
+      e.on(.all, f).trigger("a b")
+      asserts:
+         true? e.a
+         true? e.b
+         e.counter == 2
+
+   it "can use on and then turn off all functions":
+      obj = CounterClass()
+      method increment = -> @counter += 1
+      obj.on(.event, increment)
+      obj.trigger(.event) ;; 1
+      obj.off(.event, increment)
+      obj.trigger(.event)
+      assert obj.counter == 1
+
+   it "can bind two callbacks, and turn off only one":
+      obj = Saucer.Events()
+      obj.a = 0
+      obj.b = 0
+      inc-a = @-> @a += 1
+      inc-b = @-> @b += 1
+      obj.on(.event, inc-a)
+      obj.on(.event, inc-b)
+      obj.trigger(.event)
+      obj.off(.event, inc-a)
+      obj.trigger(.event)
+      obj.off(.event, inc-b)
+      obj.trigger(.event)
+      asserts:
+         obj.a == 1
+         obj.b == 2
+
+   it "can turn off a callback in the midst of it firing":
+      obj = CounterClass()
+      method f = ->
+         @counter += 1
+         @off(.event, f)
+      obj.on(.event, f)
+      obj.trigger(.event)
+      obj.trigger(.event)
+      obj.trigger(.event)
+      assert obj.counter == 1
+
+   it "can do two binds that unbind themselves":
+      obj = Saucer.Events()
+      obj.a = 0
+      obj.b = 0
+      inc-a = @-> [@a += 1; @off(.event, inc-a)]
+      inc-b = @-> [@b += 1; @off(.event, inc-b)]
+      obj.on(.event, inc-a)
+      obj.on(.event, inc-b)
+      obj.trigger(.event)
+      obj.trigger(.event)
+      obj.trigger(.event)
+      asserts:
+         obj.a == 1
+         obj.b == 1
+
+   it "can bind a callback w/ a supplied context":
+      a = Saucer.Events()
+      b = CounterClass()
+      a.on(.event, @-> @counter += 1, b)
+      a.trigger(.event)
+      assert b.counter == 1
+
+   it "can do a nested trigger with unbind":
+      obj = CounterClass()
+      method incr1 = ->
+         @counter += 1
+         @off(.event, incr1)
+         @trigger(.event)
+      method incr2 = ->
+         @counter += 1
+      obj.on(.event, incr1)
+      obj.on(.event, incr2)
+      obj.trigger(.event)
+      assert obj.counter == 3
+      obj.off()
+
+   it "will not alter its callback list during trigger":
+      obj = CounterClass()
+      method incr     = -> @counter += 1
+      method incr-on  = -> @on( "event all", incr)
+      method incr-off = -> @off("event all", incr)
+      obj.on("event all", incr-on)
+      obj.trigger(.event)
+      assert obj.counter == 0 ;; on does not alter cb list
+      obj.off()
+      obj.on(.event, incr-off).on("event all", incr).trigger(.event)
+      assert obj.counter == 2 ;; off does not alter callback list

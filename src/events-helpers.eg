@@ -110,13 +110,13 @@ trigger-api = (obj-evts, name, cb, args) ->
 
 ;; A generalized translation of the optimized version of this function in
 ;; Backbone.  Not sure if it's effective or not but it is readable.
-trigger-events = (evts, args) ->
+trigger-events = (events, args) ->
+   evts = events.slice()
    match args.length:
       0 -> evts each event -> event.callback.call(event.ctx)
-      1 -> evts each event -> event.callback.call(event.ctx) with
-         [args[0]]
+      1 -> evts each event -> event.callback.call(event.ctx) with args[0]
       2 -> evts each event -> event.callback.call(event.ctx) with
          [args[0], args[1]]
       3 -> evts each event -> event.callback.call(event.ctx) with
          [args[0], args[1], args[2]]
-      else -> evts each event -> event.callback.call(event.ctx, args)
+      else -> evts each event -> event.callback.apply(event.ctx, args)
