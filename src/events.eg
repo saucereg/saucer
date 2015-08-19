@@ -27,6 +27,14 @@ class Events:
    on = (name, cb, context) -> internal-on(@, name, cb, context)
    ;; TODO: add `bind` alias
 
+
+   ;; Bind an event to only be triggered a single time. After the first time
+   ;; the callback is invoked, its Object?  for a combination of all events.
+   once = (name, cb, context) ->
+      @on(events, undefined, context) where events =
+         ;; Map the event into a `{event: once}` object.
+         events-api(once-map, {=}, name, cb, _bind(@off, @))
+
    ;; Inversion-of-control version of `on`. Tell *this* object to listen to
    ;; an event in another object... keeping track of what it's listening to
    ;; for easier unbinding later.
@@ -52,6 +60,13 @@ class Events:
       @
 
 
+   ;; Inversion-of-control versions of `once`.
+   listen-to-once = (obj, name, cb) ->
+      @listen-to(obj, events) where events =
+         ;; Map the event into a `{event: once}` object.
+         events-api(once-map, {=}, name, cb, _bind(@stop-listening, @, obj))
+
+
    ;; Remove one or many callbacks. If `context` is null, removes all
    ;; callbacks with that function. If `callback` is null, removes all
    ;; callbacks for the event. If `name` is null, removes all bound
@@ -75,21 +90,6 @@ class Events:
          if listening-to[id] as listening: listening.obj.off(name, cb, @)
       if is-empty? listening-to: @_listening-to = undefined
       @
-
-
-   ;; Bind an event to only be triggered a single time. After the first time
-   ;; the callback is invoked, its Object?  for a combination of all events.
-   once = (name, cb, context) ->
-      @on(events, undefined, context) where events =
-         ;; Map the event into a `{event: once}` object.
-         events-api(once-map, {=}, name, cb, _bind(@off, @))
-
-
-   ;; Inversion-of-control versions of `once`.
-   listen-to-once = (obj, name, cb) ->
-      @listen-to(obj, events) where events =
-         ;; Map the event into a `{event: once}` object.
-         events-api(once-map, {=}, name, cb, _bind(@stop-listening, @, obj))
 
 
    ;; Trigger one or many events, firing all bound callbacks. Callbacks are
