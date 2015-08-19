@@ -86,10 +86,9 @@ off-api = (events, name, cb, opts) ->
          \ or [context and not context == handler.context]:
             remaining.push(handler)
          else:
-            listening = handler.listening
-            if listening and listening.count == 0:
-               delete listeners[listening.id]
-               delete listening.listening-to[listening.obj-id]
+            if handler.listening and --handler.listening.count == 0:
+               delete listeners[handler.listening.id]
+               delete handler.listening.listening-to[handler.listening.obj-id]
 
       ;; Update tail event if the list has any events. Otherwise, clean up.
       if remaining.length:
