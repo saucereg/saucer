@@ -33,6 +33,8 @@
 
 ## About
 
+[![Join the chat at https://gitter.im/saucereg/saucer](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/saucereg/saucer?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 _Saucer_ is a light framework or set of components that provides a flexible and fun way of writing websites and webapps.  Initially it's a translation of [Backbone.js](http://backbonejs.org/) to [Earl Grey][earl-grey-link].  As the project progresses, it will be refined and enhanced to better fit Earl-Grey's syntax and semantics.
 
 Soon there will be documentation available to guide you through using Saucer.
