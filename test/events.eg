@@ -7,7 +7,7 @@ require-macros:
 
 require:
    underscore -> {size, debounce}
-   ../src/saucer -> Saucer
+   ../src/Saucer
 
 class CounterClass < Saucer.Events:
    counter = 0
