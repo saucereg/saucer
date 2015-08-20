@@ -1,0 +1,14 @@
+require:
+   jquery as $
+   ./Events
+   ./Model
+provide: Saucer, Events
+
+class SaucerClass < Events:
+   static:
+      e = Events
+   $ = $
+   Events = Events
+   Model = Model
+
+Saucer = SaucerClass()

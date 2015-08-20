@@ -6,7 +6,6 @@ require:
       unique-id
    ./events-helpers ->
       internal-on, events-api, on-api, off-api, trigger-api, once-map
-provide: Events
 
 ;; Saucer.Events
 ;; -------------
@@ -21,7 +20,7 @@ provide: Events
 ;;    my-counter.on(.count) with -> my-counter.counter += 1
 ;;    my-counter.trigger(.count)
 ;;
-class Events:
+module.exports = class Events:
    ;; Bind an event to a `cb` function.  Passing `"all"` will bind
    ;; the callback to all events fired.
    on = (name, cb, context) -> internal-on(@, name, cb, context)

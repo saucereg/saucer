@@ -1,0 +1,78 @@
+require:
+   underscore ->
+      defaults, clone
+      result, escape
+      unique-id, iteratee
+   ./Events
+
+;; Saucer.Model
+;; --------------
+
+;; Saucer **Models** are the basic data object in the framework --
+;; frequently representing a row in a table in a database on your server.
+;; A discrete chunk of data and a bunch of useful, related methods for
+;; performing computations and transformations on that data.
+
+;; Create a new model with the specified attributes. A client id (`cid`)
+;; is automatically generated and assigned for you.
+module.exports = class Model < Events:
+
+   constructor(attributes, var options) =
+      var attrs = attributes or {=}
+      options = options or {=}
+      @cid = unique-id(@cid-prefix)
+      @attributes = {=}
+      if options.collection: @collection = options.collection
+      if options.parse: attrs = @parse(attrs, options) or {=}
+      attrs = defaults({=}, attrs, result(@, .defaults))
+      @set(attrs, options)
+      @changed = {=}
+      @initialize.apply(@, arguments)
+
+   ;; A hash of attributes whose current and previous value differ
+   changed = null
+
+   ;; The value returned during the last failed validation
+   validation-error = null
+
+   ;; The default name for the JSON `id` attribute is `"id"`.  MongoDB and
+   ;; CouchDB users may want to set this to `"_id"`.
+   id-attribute = .id
+
+   ;; The prefix is used to create the client id which is used to identify
+   ;; models locally.  You may want to override this if you're experiencing name
+   ;; clashes with model ids.
+   cid-prefix = .c
+
+   ;; Initialize is an empty function by default.  Override it with your own
+   ;; initialization logic
+   initialize = -> pass
+
+   ;;  Return a copy of the model's `attributes` object
+   to-JSON = options -> clone(@attributes)
+
+   ;; Proxy `Saucer.Sync` by default -- but override this if you need custom
+   ;; syncing semantics for *this* particular model.
+   sync = -> pass
+   ;; TODO: add Sync here
+   ;; FIXME: Figure out how to only proxy if present.
+
+   ;; Get the value of an attribute
+   get = attr -> @attributes[attr]
+
+   ;; Get the HTML-escaped value of an attribute
+   escape = attr -> escape(@get(attr))
+
+   ;; Returns `true` if the attribute contains a value that is not null
+   ;; or undefined.
+   has = attr -> not null? @get(attr)
+
+   ;; Special-cased proxy to underscore's `_.matches` method
+   matches = attrs -> Boolean! iteratee(attrs, @)(@attributes)
+
+   ;; Set a hash of model attributes on the object, firing "change". This is the
+   ;; core primitive operation of a model,  updating the data and notifying
+   ;; anyone who needs to know about the change in state.  The heart of the
+   ;; beast.
+   set = (key, val, options) ->
+      

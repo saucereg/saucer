@@ -493,7 +493,7 @@ describe "Saucer.Events":
       assert undefined? obj.val
 
    it "is inherited by the main Saucer objct":
-      assert Saucer.on === Saucer.Events.on
+      assert Saucer.on === Saucer.Events.prototype.on
 
    it "will not run if `listen-to-once` has no callback":
       obj = Saucer.Events()

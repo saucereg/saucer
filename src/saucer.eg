@@ -1,9 +1,0 @@
-require:
-   jquery as $
-   ./events -> Events
-provide: Saucer, Events
-
-class Saucer < Events:
-   static:
-      $ = $
-      Events = Events
