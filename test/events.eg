@@ -6,7 +6,7 @@ require-macros:
       assert, asserts
 
 require:
-   underscore -> size
+   underscore -> {size, debounce}
    ../src/saucer -> Saucer
 
 class CounterClass < Saucer.Events:
@@ -482,3 +482,152 @@ describe "Saucer.Events":
       asserts:
          obj.msg === .success
          obj.err === undefined
+
+   it "will not skip consecutive events with off":
+      obj = Saucer.Events()
+      obj.val = undefined
+      obj.on(.event, @-> @val = .error, obj)
+      obj.on(.event, @-> @val = .error, obj)
+      obj.off(null, null, obj)
+      obj.trigger(.event)
+      assert undefined? obj.val
+
+   it "is inherited by the main Saucer objct":
+      assert Saucer.on === Saucer.Events.on
+
+   it "will not run if `listen-to-once` has no callback":
+      obj = Saucer.Events()
+      obj.listen-to-once(obj, .event).trigger(.event)
+
+   it "can chain event functions":
+      a = Saucer.Events()
+      b = Saucer.Events()
+      fn = -> pass
+      asserts:
+         a === a.trigger(.no-events-set-yet)
+         a === a.off(.no-events-set-yet)
+         a === a.stop-listening(.no-events-set-yet)
+         a === a.on(.a, fn)
+         a === a.once(.c, fn)
+         a === a.trigger(.a)
+         a === a.listen-to(b, .a, fn)
+         a === a.listen-to-once(b, .b, fn)
+         a === a.off("a c")
+         a === a.stop-listening(b, .a)
+         a === a.stop-listening()
+
+   it "can listen-to-once with space-sep events":
+      one = Saucer.Events()
+      two = Saucer.Events()
+      count = 1
+      one.listen-to-once(two, "x y", n -> assert n === count++)
+      two.trigger(.x, 1)
+      two.trigger(.x, 1)
+      two.trigger(.y, 2)
+      two.trigger(.y, 2)
+
+
+
+describe "Saucer.Events.once":
+
+   it "can be used to only trigger an event once":
+      obj = Saucer.Events()
+      {obj.a, obj.b} = {0, 0}
+      method incr-a = -> [@a += 1; @trigger(.event)]
+      method incr-b = -> @b += 1
+      obj.once(.event, incr-a)
+      obj.once(.event, incr-b)
+      obj.trigger(.event)
+      asserts:
+         obj.a == 1
+         obj.b == 1
+
+   it "will properly execute only one time compared to `on`":
+      a = CounterClass()
+      b = CounterClass()
+      method incr = -> @counter += 1
+      a.once(.event, incr)
+      b.on(.event, incr)
+
+      a.trigger(.event)
+      a.trigger(.event)
+
+      b.trigger(.event)
+      b.trigger(.event)
+
+      asserts:
+         a.counter == 1
+         b.counter == 2
+
+   it "can be used with `off`":
+      obj = Saucer.Events()
+      obj.failure = undefined
+      method f = -> @failure = true
+      obj.once(.event ,f)
+      obj.off(.event, f)
+      obj.trigger(.event)
+      assert undefined? obj.failure
+
+   it "can be used with event maps":
+      obj = CounterClass()
+      method incr = -> @counter += 1
+
+      obj.once(evt-map, obj) where evt-map = {
+         a = incr
+         b = incr
+         c = incr
+      }
+
+      obj.trigger(.a)
+      assert obj.counter == 1
+
+      obj.trigger("a b")
+      assert obj.counter == 2
+
+      obj.trigger(.c)
+      assert obj.counter == 3
+
+      obj.trigger("a b c")
+      assert obj.counter == 3
+
+   it "can be used with off by context":
+      context = {=}
+      obj = Saucer.Events()
+      obj.once(.event, -> assert false, context)
+      obj.off(null, null, context)
+      obj.trigger(.event)
+
+   it "can work with async events": done ->
+      e = CounterClass()
+      method f = -> debounce(-> @counter += 1, 50)
+      e.once(.async, f)
+      e.trigger(.async)
+      e.trigger(.async)
+      assert e.counter === 1
+      done()
+
+   it "will work with multiple events":
+      obj = CounterClass()
+      obj.once("x y", @-> @counter += 1)
+      obj.trigger("x y")
+      assert obj.counter == 2
+
+   it "will properly take itself out of iteration upon firing":
+      obj = CounterClass()
+      method incr-one = -> @counter += 1
+      method incr-two = -> @counter += 2
+      obj.on(.event, incr-one)
+      obj.once(.event, incr-two)
+      obj.on(.event, incr-two)
+      obj.trigger(.event)
+      obj.trigger(.event)
+      assert obj.counter == 8
+
+   it "works with `all`":
+      obj = CounterClass()
+      obj.once(.all, @-> [@counter += 1; obj.trigger(.all)], obj)
+      obj.trigger(.anything)
+      assert obj.counter == 1
+
+   it "is a noop without a callback":
+      obj.once(.event).trigger(.event) where obj = Saucer.Events()
