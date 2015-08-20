@@ -1,10 +1,10 @@
 require:
    underscore ->
-      defaults, clone, is-equal
-      result, escape, extend, is-empty
+      defaults, clone, is-equal, defer, result, escape, extend, is-empty
       unique-id, iteratee, has, size
    ./Events
    ./util/Model -> wrap-error
+globals: encode-URI-component
 
 ;; Saucer.Model
 ;; --------------
@@ -173,3 +173,105 @@ module.exports = class Model < Events:
          model.trigger(.sync, model, resp, opts)
       wrap-error(@, opts)
       @sync(.read, @, opts)
+
+   ;; Set a hash of model attributes, and sync the model to the server. If the
+   ;; server returns an attribute hash that differs, the model's state will be
+   ;; `set` again.
+   save = (key, val, var opts) ->
+      ;; Handle both `"key", value` and `{key = value}` style args
+      attrs =
+         if null? key or Object? key: [opts = val; key]
+         else: [a = {=}; a[key] = val; a]
+
+      opts = extend {validate = true, parse = true}: opts
+      opts as {=> wait}
+
+      ;; If we're not waiting and attributes exist, save acts as
+      ;; `set(attr).save(null, opts)` with validation.  Otherwise, check if the
+      ;; model will be valid when the attributes, if any, are set.
+      if attrs and not wait:
+         if not @set(attrs, opts): return false
+      else:
+         if not @_validate(attrs, opts): return false
+
+      ;; After a successful server-side save, the client is (optionally) updated
+      ;; with the server-side state.
+      {model, success, attributes} = {@, opts.success, @attributes}
+      opts.success = resp ->
+         ;; Ensure attributes are restored during synchronous saves
+         model.attributes = attributes
+         var server-attrs = if {opts.parse; model.parse(resp, opts); resp}
+         if wait: server-attrs = extend({=}, attrs, server-attrs)
+         if server-attrs and not model.set(server-attrs, opts): return false
+         if success: success.call(opts.context, model, resp, opts)
+         model.trigger(.sync, model, resp, opts)
+      wrap-error(@, opts)
+
+      ;; Set temporary attributes if `{wait = true}` to properly find new ids.
+      if attrs and wait: @attributes = extend({}, attributes, attrs)
+
+      method-name = if {@is-new(); .create; if {opts.patch; .patch; .update}}
+      if method-name === .patch and not opts.attrs: opts.attrs = attrs
+      xhr = @sync(method-name, @, opts)
+
+      ;; Restore attributes
+      @attributes = attributes
+
+      xhr
+
+   ;; Destroy this model on the server if it was already persisted.
+   ;; Optimistically removes the model form its collection, if it has one. If
+   ;; `wait = true` is passed, waits for the server to respond before removal.
+   destroy = (var opts) ->
+      opts >> clone(opts) = opts or {}
+      {model, {=> success, => wait}} = {@, opts}
+
+      destroy = ->
+         model.stop-listening()
+         model.trigger(.destroy, model, model.collection, opts)
+
+      opts.success = resp ->
+         if wait: destroy()
+         if success: success.call(opts.context, model, resp, opts)
+         if not model.is-new(): model.trigger(.sync, model, resp, opts)
+
+      var xhr = false
+      if @is-new(): defer(opts.success)
+      else:
+         wrap-error(@, opts)
+         xhr = @sync(.delete, @, opts)
+      if not wait: destroy()
+      xhr
+
+   ;; Default URL for the model's representation on the server -- if you're
+   ;; using Saucer's restful methods, override this to change the endpoint
+   ;; that will be called.
+   url = ->
+      base = result(@, .url-root) or result(@collection, .url)
+      \ or throw E.url-error('A "url" property or function must be specified')
+      if @is-new(): return base
+      base.replace(R"[^\/]$", '$&/') + encode-URI-component(@get(@id-attribute))
+
+   ;; **parse** converts a response into the hash of attributes to be `set` on
+   ;; the model.  The default implementation is just to pass the response along.
+   parse = (resp, _) -> resp
+
+   ;; Create a new model with identical attributes to this one.
+   clone = -> @constructor(@attributes)
+
+   ;; A model is new if it has never been saved to the server and lacks an id.
+   is-new = -> not @has(@id-attribute)
+
+   ;; Check if the model is currently in a valid state
+   is-valid = opts -> @_validate({}, defaults({validate = true}, opts))
+
+   ;; Run validation against the next complete set of model attributes,
+   ;; returning `true` if all is well.  Otherwise, fire an "invalid" event.
+   _validate = (var attrs, opts) ->
+      if not opts.validate or not @validate: return true
+      attrs = extend({}, @attributes, attrs)
+      error and @validation-error = @validate(attrs, opts) or null
+      if not error: true
+      else:
+         @trigger(.invalid, @, error, extend(opts, {validation-error = error}))
+         false
