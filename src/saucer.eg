@@ -1,5 +1,4 @@
 require:
-   ;;underscore -> extend
    jquery as $
    ./events -> Events
 provide: Saucer, Events
@@ -8,7 +7,3 @@ class Saucer < Events:
    static:
       $ = $
       Events = Events
-
-;;saucer = Saucer()
-;;saucer.on(.expand) with -> print "Expanded!"
-;;saucer.trigger(.expand)
