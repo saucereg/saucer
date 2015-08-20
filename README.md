@@ -37,12 +37,17 @@ _Saucer_ is a light framework or set of components that provides a flexible and 
 
 Soon there will be documentation available to guide you through using Saucer.
 
+## Status
+
+__Saucer is not currently finished.__ Please be aware of that when downloading this project. Most recently, the Events API was completed and tested.  Still much more work to go.
+
 ## Usage
 ### Install
 
 ```
-npm install earlgrey-saucer
+npm install @saucer/all
 ```
+As with [Ampersand.js](https://ampersandjs.com/), each component will also available as a separate package: `@saucer/events`, `@saucer/model`, `@saucer/collection`, `@saucer/router`, `@saucer/view`, `@saucer/sync`, and `@saucer/history`.
 
 # Contributing
 
