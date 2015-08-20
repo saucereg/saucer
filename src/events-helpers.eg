@@ -18,11 +18,12 @@ internal-on = (obj, name, cb, context, listening) ->
 
 ;; Reduces the event callbacks into a map of `{event: onceWrapper}`.
 ;; `offer` unbinds the `onceWrapper` after it has been called.
-once-map = (Object? map, String? name, Function? callback, Function? offer) ->
-   once and map[name] = _once with ->
-      offer(name, once)
-      callback.apply(this, arguments)
-   once._callback = callback
+once-map = (Object? map, String? name, callback, Function? offer) ->
+   if callback:
+      once and map[name] = _once with ->
+         offer(name, once)
+         callback.apply(this, arguments)
+      once._callback = callback
    map
 
 
