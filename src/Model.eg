@@ -1,9 +1,10 @@
 require:
    underscore ->
-      defaults, clone
-      result, escape
-      unique-id, iteratee
+      defaults, clone, is-equal
+      result, escape, extend, is-empty
+      unique-id, iteratee, has, size
    ./Events
+   ./util/Model -> wrap-error
 
 ;; Saucer.Model
 ;; --------------
@@ -74,5 +75,101 @@ module.exports = class Model < Events:
    ;; core primitive operation of a model,  updating the data and notifying
    ;; anyone who needs to know about the change in state.  The heart of the
    ;; beast.
-   set = (key, val, options) ->
-      
+   set = (key, val, var options = {=}) ->
+      if null? key: return this
+
+      ;; Handle both `"key", value` and `{key = value}` style arguments
+      attrs =
+         if Object? key: [options = val; key]
+         else: {}[key] = val
+
+      ;; Run validation
+      if not @_validate(attrs, options): return false
+
+      options as {=> unset, => silent}
+      changes = {}
+      changing = @_changing
+      @_changing = true
+
+      if not changing:
+         {@_previous-attributes, @changed} = {clone(@attributes), {=}}
+
+      this as {attributes => current, => changed, _previous-attributes => prev}
+
+      ;; For each `set` attribute, update or delete the current vale
+      for attr in attrs:
+         let val = attrs[attr]
+         if not is-equal(current[attr], val): changes.push(attr)
+         if not is-equal(prev[attr], val):    changed[attr] = val
+         else: delete changed[attr]
+         if {unset; delete current[attr]; current[attr] = val}
+
+      ;; Update the `id`
+      @id = @get(@id-attribute)
+
+      ;; Triggerl all relevant attribute changes
+      if not silent:
+         if changes.length: @_pending = options
+         changes each c -> @trigger('change:{c}', @, current[c], options)
+
+      ;; You might be wondering why there's a `while` loop here. Changes can
+      ;; be recursively nested within `"change"` events
+      if changing: return this
+      if not silent:
+         while @_pending:
+            options = @_pending
+            @_pending = false
+            @trigger(.change, @, options)
+      @_pending and @_changing = false
+      @
+
+   ;; Remove an attribute from the model, firing `"change"`. `unset` is a noop
+   ;; if the attribute doesn't exist.
+   unset = (attr, opts) ->
+      @set(attr, undefined, extend({}, opts, {unset = true}))
+
+   ;; Clear all attributes on the model, firing `"change"`.
+   clear = opts -> @set(attrs, extend({}, opts, {unset = true})) where
+      attrs = [a = {=}; for key in @attributes: a[key] = undefined; a]
+
+   ;; Determine if the model has changed since the last `"change"` event. If
+   ;; you specify an attribute name, determine if that attribute has changed.
+   has-changed = attr ->
+      if null? attr: return not is-empty(@changed)
+      has @changed: attr
+
+   ;; Return an object containing all the attributes that have changed, or false
+   ;; if there are no changed attributes.  Useful for determining what parts of
+   ;; a view need to be pdated and/or what attributes need to be persisted to
+   ;; the server.  Unset attributes will be set to the undefined.  You can also
+   ;; pass an attributes object to diff against the model, determing if there
+   ;; "would be" a change.
+   changed-attributes = diff ->
+      if not diff: return if {@has-changed(); clone(@changed); false}
+      {old, changed} = {if {@changing; @_previous-attributes; @attributes}, {=}}
+      keys(diff) each key and val is diff[key] ->
+         if is-equal(old[key], val): continue
+         changed[key] = val
+      if {size(changed); changed; false}
+
+   ;; Get the previous value of an attribute, recorded at the time the last
+   ;; `"changed"` event was fired.
+   previous = attr ->
+      if null? attr or not @_previous-attributes: return null
+      @_previous-attributes[attr]
+
+   ;; Get all of the attributes of the model at the time of the previous
+   ;; `"changed"` event.
+   previous-attributes = -> clone(@_previous-attributes)
+
+   ;; Fetch the model from the server, merging the response with the model's
+   ;; local attributes,  Any changed attributes will trigger a "change" event.
+   fetch = (var opts) ->
+      {opts, model, {=> success}} = {extend {parse = true}: opts, @, opts}
+      opts.success = resp ->
+         server-attrs = if {opts.parse; model.parse(resp, opts); resp}
+         if not model.set(server-attrs, opts): return false
+         if success: success.call(opts.context, model, resp, opts)
+         model.trigger(.sync, model, resp, opts)
+      wrap-error(@, opts)
+      @sync(.read, @, opts)

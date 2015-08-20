@@ -1,0 +1,7 @@
+provide: wrap-error
+
+wrap-error = (model, opts) ->
+   opts as {=> error}
+   opts.error = resp ->
+      if error: error.call(opts.context, model, resp, opts)
+      model.trigger(.error, model, resp, opts)
