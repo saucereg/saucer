@@ -19,6 +19,7 @@ globals: encode-URI-component
 module.exports = class Model < Events:
 
    constructor(var attrs = {=}, options = {=}) =
+      Events.call(@)
       @cid = unique-id(@cid-prefix)
       @attributes = {=}
       if options.collection: @collection = options.collection
@@ -83,8 +84,7 @@ module.exports = class Model < Events:
 
       ;; Run validation
       if not @_validate(attrs, options): return false
-
-      options as {=> unset, => silent}
+      {unset, silent} = {options.unset, options.silent}
       changes = {}
       changing = @_changing
       @_changing = true
