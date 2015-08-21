@@ -1,6 +1,6 @@
 require: underscore
 provide:
-   default-set-opts, default-add-opts, place-within, copy
+   default-set-opts, default-add-opts, place-within
 
 ;; Default options for `Collection#set`.
 default-set-opts = {add = true, remove = true, merge = true}
@@ -12,6 +12,3 @@ place-within = (array, at, insert) ->
    0..tail.length   each i -> tail[i] = array[i + at]
    0..insert.length each i -> array[i + at] = insert[i]
    0..tail.length   each i -> array[i + insert.length + at] = tail[i]
-
-;; Rewrite of `_.clone` to not interfere with `Collection#clone`.
-copy = obj -> underscore.clone(obj)

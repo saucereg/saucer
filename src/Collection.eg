@@ -1,9 +1,9 @@
 require:
    underscore ->
-      extend, defaults, some, invoke
+      extend, defaults, some, invoke, clone as _clone
    ./Saucer
    ./util/Collection ->
-      default-add-opts, default-set-opts, place-within, copy as _clone
+      default-add-opts, default-set-opts, place-within
    ./util/Model ->
       wrap-error
 
@@ -145,142 +145,142 @@ module.exports = class Collection < Saucer.Events:
       ;; Return the added (or merged) model (or models).
       if {singular; models[0]; models}
 
-      ;; When you have more items than you want to add or remove individually,
-      ;; you can reset the entire set with a new list of models,  without firing
-      ;; any granular `add` or `remove` events.  fires `reset` when finished.
-      ;; Useful for bulk operations and optimizations.
-      reset = (var models, var options) ->
-         options = if {options; _clone(options); {=}}
-         @models each model -> @_remove-reference(model, options)
-         options.previous-models = @models
-         @_reset()
-         models = @add(models, extend({silent = true}, options))
-         if not options.silent: @trigger(.reset, @, options)
-         models
+   ;; When you have more items than you want to add or remove individually,
+   ;; you can reset the entire set with a new list of models,  without firing
+   ;; any granular `add` or `remove` events.  fires `reset` when finished.
+   ;; Useful for bulk operations and optimizations.
+   reset = (var models, var options) ->
+      options = if {options; _clone(options); {=}}
+      @models each model -> @_remove-reference(model, options)
+      options.previous-models = @models
+      @_reset()
+      models = @add(models, extend({silent = true}, options))
+      if not options.silent: @trigger(.reset, @, options)
+      models
 
-      ;; Add a model to the end of the collection.
-      push = (model, options) -> @add(model) with extend {at = @length}: options
+   ;; Add a model to the end of the collection.
+   push = (model, options) -> @add(model) with extend {at = @length}: options
 
-      ;; Remove a model from the end of the collection
-      pop = options -> @remove(@at(@length - 1), options)
+   ;; Remove a model from the end of the collection
+   pop = options -> @remove(@at(@length - 1), options)
 
-      ;; Add a model to the beginning of the collection
-      unshift = (model, options) -> @add(model) with extend {at = 0}: options
+   ;; Add a model to the beginning of the collection
+   unshift = (model, options) -> @add(model) with extend {at = 0}: options
 
-      ;; Remove a model from the beginning of the collection
-      shift = options -> @remove(@at(0), options)
+   ;; Remove a model from the beginning of the collection
+   shift = options -> @remove(@at(0), options)
 
-      ;; Get a model from the set by id
-      get = obj ->
-         if null? obj: return undefined
-         id = @model-id(if {@is-model(obj); obj.attributes; obj})
-         @_by-id[obj] or @_by-id[id] or @_by-id[obj.cid]
+   ;; Get a model from the set by id
+   get = obj ->
+      if null? obj: return undefined
+      id = @model-id(if {@is-model(obj); obj.attributes; obj})
+      @_by-id[obj] or @_by-id[id] or @_by-id[obj.cid]
 
-      ;; Get the model at the given index
-      at = var index -> [if index < 0: index += @length; @models[index]]
+   ;; Get the model at the given index
+   at = var index -> [if index < 0: index += @length; @models[index]]
 
-      ;; Return models with matching attributes.  Useful for simple cases of
-      ;; `filter`.
-      wherein = (attrs, first) -> @[if {first; .find; .filter}](attrs)
+   ;; Return models with matching attributes.  Useful for simple cases of
+   ;; `filter`.
+   wherein = (attrs, first) -> @[if {first; .find; .filter}](attrs)
 
-      ;; Return the first model with matching attributes.  useful for simple
-      ;; cases of `find`.
-      find-wherein = attrs -> @wherein(attrs, true)
+   ;; Return the first model with matching attributes.  useful for simple
+   ;; cases of `find`.
+   find-wherein = attrs -> @wherein(attrs, true)
 
-      ;; Force the collection to re-sort itself.  You don't need to call this
-      ;; under normal circumstances,  as the set will maintain sort order as
-      ;; each item is added.
-      sort = (options = {=}) ->
-         var comparator = @comparator
-         if not comparator:
-            throw E.Saucer.Collection.sort("Cannot sort a set without a comparator")
+   ;; Force the collection to re-sort itself.  You don't need to call this
+   ;; under normal circumstances,  as the set will maintain sort order as
+   ;; each item is added.
+   sort = (options = {=}) ->
+      var comparator = @comparator
+      if not comparator:
+         throw E.Saucer.Collection.sort("Cannot sort a set without a comparator")
 
-         length = comparator.length
-         if Function? comparator: comparator = @bind(comparator, @)
+      length = comparator.length
+      if Function? comparator: comparator = @bind(comparator, @)
 
-         ;; Run sort based on type of `comparator`
-         if length == 1 or String? comparator: @models = @sort-by(comparator)
-         else: @models.sort(comparator)
-         if not options.silent: @trigger(.sort, @, options)
-         @
+      ;; Run sort based on type of `comparator`
+      if length == 1 or String? comparator: @models = @sort-by(comparator)
+      else: @models.sort(comparator)
+      if not options.silent: @trigger(.sort, @, options)
+      @
 
-      ;; Pluck an attribute from each model in the collection
-      pluck = attr -> invoke(@models, .get, attr)
+   ;; Pluck an attribute from each model in the collection
+   pluck = attr -> invoke(@models, .get, attr)
 
-      ;; Fetch the default set of models for this collection,  resetting the
-      ;; collection when they arrive.  If `reset = true` is passed, the response
-      ;; data will be passed through the `reset` method instead of `set`.
-      fetch = (var options) ->
-         options = extend {parse = true}: options
-         success = options.success
-         collection = this
-         options.success = resp ->
-            resp-method = if {options.reset; .reset; .set}
-            collection[resp-method](resp, options)
-            if success: success.call(options.context, collection, resp, options)
-            collection.trigger(.sync, collection, resp, options)
-         wrap-error(@, options)
-         @sync(.read, @, options)
+   ;; Fetch the default set of models for this collection,  resetting the
+   ;; collection when they arrive.  If `reset = true` is passed, the response
+   ;; data will be passed through the `reset` method instead of `set`.
+   fetch = (var options) ->
+      options = extend {parse = true}: options
+      success = options.success
+      collection = this
+      options.success = resp ->
+         resp-method = if {options.reset; .reset; .set}
+         collection[resp-method](resp, options)
+         if success: success.call(options.context, collection, resp, options)
+         collection.trigger(.sync, collection, resp, options)
+      wrap-error(@, options)
+      @sync(.read, @, options)
 
-      ;; Create a new instance of a model in this collection.  Add the model to
-      ;; the collection immediately, unless `wait = true` is passed, in which
-      ;; case we wait for the server to agree.
-      create = (var model, var options) ->
-         options = if {options; _clone(options); {=}}
-         options as {=> wait, => success}
-         model = @_prepare-model(model, options)
-         if not model: return false
-         if not wait: @add(model, options)
-         collection = this
-         options.success = (model, resp, cb-opts) ->
-            if wait: collection.add(model, cb-opts)
-            if success: success.call(cb-opts.context, model, resp, cb-opts)
-         model.save(null, options)
-         model
+   ;; Create a new instance of a model in this collection.  Add the model to
+   ;; the collection immediately, unless `wait = true` is passed, in which
+   ;; case we wait for the server to agree.
+   create = (var model, var options) ->
+      options = if {options; _clone(options); {=}}
+      options as {=> wait, => success}
+      model = @_prepare-model(model, options)
+      if not model: return false
+      if not wait: @add(model, options)
+      collection = this
+      options.success = (model, resp, cb-opts) ->
+         if wait: collection.add(model, cb-opts)
+         if success: success.call(cb-opts.context, model, resp, cb-opts)
+      model.save(null, options)
+      model
 
-      ;; **parse** converts a response into a list of models to be added to the
-      ;; collection.  The default implementation is just to pass it through.
-      parse = (resp, options) -> resp
+   ;; **parse** converts a response into a list of models to be added to the
+   ;; collection.  The default implementation is just to pass it through.
+   parse = (resp, options) -> resp
 
-      ;; Create a new collection with an identical list of models as this one.
-      ;; NOTE: This is originally `clone` in the Backbone API.
-      (^Symbol.clone)() = Saucer.Collection(@models) with
-         {model = @model, comparator = @comparator}
+   ;; Create a new collection with an identical list of models as this one.
+   ;; NOTE: This is originally `clone` in the Backbone API.
+   (^Symbol.clone)() = Saucer.Collection(@models) with
+      {model = @model, comparator = @comparator}
 
-      ;; Define how to uniquely identify models in the collection.
-      model-id = attrs -> attrs[@model.id-attribute] or .id
+   ;; Define how to uniquely identify models in the collection.
+   model-id = attrs -> attrs[@model.id-attribute] or .id
 
-      ;; Private method to reset all internal state.  Called whn the colleciton
-      ;; is first initialized or reset.
-      _reset = -> [@length = 0; @models = {}; _by-id = {=}]
+   ;; Private method to reset all internal state.  Called whn the colleciton
+   ;; is first initialized or reset.
+   _reset = -> [@length = 0; @models = {}; _by-id = {=}]
 
-      ;; Prepare a hash of attributes (or other model) to be added to this
-      ;; collection.
-      _prepare-model = (attrs, var options) ->
-         if @_is-model(attrs):
-            if not attrs.collection: attrs.collection = @
-            return attrs
-         options = if {options; _clone(options); {=}}
-         options.collection = this
-         model = @model(attrs, options)
-         if not model.validation-error: return model
-         @trigger(.invalid, @, model.validation-error, options)
-         false
+   ;; Prepare a hash of attributes (or other model) to be added to this
+   ;; collection.
+   _prepare-model = (attrs, var options) ->
+      if @_is-model(attrs):
+         if not attrs.collection: attrs.collection = @
+         return attrs
+      options = if {options; _clone(options); {=}}
+      options.collection = this
+      model = @model(attrs, options)
+      if not model.validation-error: return model
+      @trigger(.invalid, @, model.validation-error, options)
+      false
 
-      ;; Internal method called by both `remove` and `set`.
-      _remove-models = (models, options) ->
-         removed = {}
-         models each m and model is @get(m) ->
-            if not model: continue
+   ;; Internal method called by both `remove` and `set`.
+   _remove-models = (models, options) ->
+      removed = {}
+      models each m and model is @get(m) ->
+         if not model: continue
 
-            index = @index-of(model)
-            @models.splice(index, 1)
-            @length -= 1
+         index = @index-of(model)
+         @models.splice(index, 1)
+         @length -= 1
 
-            if not options.silent:
-               options.index = index
-               model.trigger(.remove, model @, options)
+         if not options.silent:
+            options.index = index
+            model.trigger(.remove, model @, options)
 
-            removed.push(model)
-            @_remove-reference(model, options)
-         if {removed.length; removed; false}
+         removed.push(model)
+         @_remove-reference(model, options)
+      if {removed.length; removed; false}
