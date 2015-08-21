@@ -74,10 +74,9 @@ module.exports = class Collection < Events:
 
       models = if {not Array? models; {models}; models.splice()}
 
-      var at = options.at
-      if not null? at: at = Number! at
-      if at < 0: at += @length + 1
-
+      var at = if not null? options.at and not undefined? options.at:
+         [n = Number! options.at; if n < 0: n + @length + 1]
+      
       {set, to-add, to-remove, model-map} = {{}, {}, {}, {=}}
 
       options as {=> add, => merge, => remove}
@@ -125,7 +124,8 @@ module.exports = class Collection < Events:
          place-within(@models, 0) with set
       elif to-add.length:
          if sortable: sort = true
-         place-within(@models, to-add, if {null? at; @length; at})
+         place-within(@models, l, to-add) where l =
+            if {null? at or undefined? at; @length; at}
          @length = @models.length
 
       ;; Silently sort the collection if appropriate
