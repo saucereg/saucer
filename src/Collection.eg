@@ -247,8 +247,7 @@ module.exports = class Collection < Events:
       {model = @model, comparator = @comparator}
 
    ;; Define how to uniquely identify models in the collection.
-   model-id = attrs ->
-      attrs[@model.id-attribute] or .id
+   model-id = attrs -> attrs[@model.prototype.id-attribute] or .id
 
    ;; Private method to reset all internal state.  Called whn the colleciton
    ;; is first initialized or reset.
