@@ -174,7 +174,7 @@ module.exports = class Collection < Events:
    ;; Get a model from the set by id
    get = obj ->
       if null? obj: return undefined
-      id = @model-id(if {@is-model(obj); obj.attributes; obj})
+      id = @model-id(if {@_is-model(obj); obj.attributes; obj})
       @_by-id[obj] or @_by-id[id] or @_by-id[obj.cid]
 
    ;; Get the model at the given index
@@ -288,7 +288,9 @@ module.exports = class Collection < Events:
 
    ;; Method for checking whether an object should be considered a model for
    ;; the purpose of adding to the collection.
-   _is-model = model -> instanceof(model, Saucer.Model)
+   _is-model = model ->
+      print @model
+      instanceof(model, Saucer.Model)
 
    ;; Internal method to create a model's ties to a collection
    _add-reference = (model, options) ->
