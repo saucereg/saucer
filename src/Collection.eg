@@ -24,7 +24,7 @@ module.exports = class Collection < Events:
    ;; If a `comparator` is specified, the Collection will maintain
    ;; its models in sort order, as they're added and removed.
    constructor(models = undefined, options = {=}) =
-      if options.model as @model: pass
+      @model = options.model or @model
       if not undefined? options.comparator: @comparator = options.comparator
       @_reset()
       @initialize.apply(@, arguments)
@@ -247,7 +247,8 @@ module.exports = class Collection < Events:
       {model = @model, comparator = @comparator}
 
    ;; Define how to uniquely identify models in the collection.
-   model-id = attrs -> attrs[@model.id-attribute] or .id
+   model-id = attrs ->
+      attrs[@model.id-attribute] or .id
 
    ;; Private method to reset all internal state.  Called whn the colleciton
    ;; is first initialized or reset.
