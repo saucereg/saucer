@@ -1,12 +1,13 @@
 require:
    underscore ->
       extend, defaults, some, invoke, clone as _clone
-   ./Saucer
+   ./Model
    ./Events
    ./util/Collection ->
       default-add-opts, default-set-opts, place-within
-   ./util/Model ->
+   ./util/model-helpers ->
       wrap-error
+
 
 ;; Backbone.Collection
 ;; -------------------
@@ -31,7 +32,7 @@ module.exports = class Collection < Events:
 
    ;; The default model for a collection is just a **Saucer.Model**. This should
    ;; be overridden in most cases.
-   model = Saucer.Model
+   model = Model
 
    ;; Initialize is an empty function by default.  Override it with your own
    ;; initialization logic.
@@ -46,11 +47,11 @@ module.exports = class Collection < Events:
    ;; TODO: add Sync here
    ;; FIXME: Figure out how to only proxy if present.
 
-   ;; Add a model, or list of models to the set.  `models` may be Saucer Models
+   ;; Add a model, or list of models to the set. `models` may be Saucer Models
    ;; or raw Earl Grey objects to be converted to Models, or any combination of
    ;; the two.
    add = (models, opts) ->
-      @set(models, extend({merge = false}, opts, default-add-opts))
+      @set(models, ({merge = false} & opts) & default-add-opts)
 
    ;; Remove a model, or a list of models from the set
    remove = (var models, opts = {=}) ->
@@ -172,10 +173,22 @@ module.exports = class Collection < Events:
    shift = options -> @remove(@at(0), options)
 
    ;; Get a model from the set by id
-   get = obj ->
-      if null? obj: return undefined
-      id = @model-id(if {@_is-model(obj); obj.attributes; obj})
-      @_by-id[obj] or @_by-id[id] or @_by-id[obj.cid]
+   get = match s ->
+      null?                               -> undefined
+      String? s                           ->
+         print 'Getting with a string: {s}'
+         @_by-id[s]
+      Model? m                            ->
+         print 'Getting with a model'
+         print m
+         @_by-id[m.cid]
+      m and id is @model-id(m.attributes) ->
+         print "Getting with something else"
+         print m
+         @_by-id[id]
+         ;;
+         ;;id = @model-id(if {@_is-model(obj); obj.attributes; obj})
+         ;;@_by-id[id] or @_by-id[obj.cid]
 
    ;; Get the model at the given index
    at = var index -> [if index < 0: index += @length; @models[index]]
@@ -245,15 +258,15 @@ module.exports = class Collection < Events:
 
    ;; Create a new collection with an identical list of models as this one.
    ;; Using Symbol unquote due to internal EG clone
-   (^Symbol.clone)() = Saucer.Collection(@models) with
+   (^Symbol.clone)() = module.exports(@models) with
       {model = @model, comparator = @comparator}
 
    ;; Define how to uniquely identify models in the collection.
-   model-id = attrs -> attrs[@model.id-attribute] or .id
+   model-id = attrs -> attrs[@model.prototype.id-attribute] or .id
 
    ;; Private method to reset all internal state.  Called whn the colleciton
    ;; is first initialized or reset.
-   _reset = -> [@length = 0; @models = {}; _by-id = {=}]
+   _reset = -> [@length = 0; @models = {}; @_by-id = {=}]
 
    ;; Prepare a hash of attributes (or other model) to be added to this
    ;; collection.
@@ -288,22 +301,20 @@ module.exports = class Collection < Events:
 
    ;; Method for checking whether an object should be considered a model for
    ;; the purpose of adding to the collection.
-   _is-model = model ->
-      print @model
-      instanceof(model, Saucer.Model)
+   _is-model = model -> instanceof(model, Model)
 
    ;; Internal method to create a model's ties to a collection
    _add-reference = (model, options) ->
-      @by-id[model.cid] = model
+      @_by-id[model.cid] = model
       id = @model-id(model.attributes)
-      if not null? id: @by-id[id] = model
+      if not null? id: @_by-id[id] = model
       model.on(.all, @_on-model-event, @)
 
    ;; Internal method to sever a model's ties to a collection
    _remove-reference = (model, options) ->
-      delete @by-id[model.cid]
+      delete @_by-id[model.cid]
       id = @model-id(model.attributes)
-      if not null? id: delete @by-id[id]
+      if not null? id: delete @_by-id[id]
       if this === model.collection: delete model.collection
       model.off(.all, @_on-model-event, @)
 
@@ -316,6 +327,6 @@ module.exports = class Collection < Events:
          prev-id = @model-id(model.previous-attributes())
          id      = @model-id(model.attributes())
          if (prev-id !== id):
-            if not null? prev-id: delete @by-id[prev-id]
-            if not null? id: @by-id[id] = model
+            if not null? prev-id: delete @_by-id[prev-id]
+            if not null? id: @_by-id[id] = model
          @trigger.apply(@, arguments)

@@ -3,7 +3,7 @@ require:
       defaults, clone, is-equal, defer, result, escape, extend, is-empty
       unique-id, iteratee, has, size
    ./Events
-   ./util/Model -> wrap-error
+   ./util/model-helpers -> wrap-error
 globals: encode-URI-component
 
 ;; Saucer.Model
