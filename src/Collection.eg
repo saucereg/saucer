@@ -243,7 +243,7 @@ module.exports = class Collection < Saucer.Events:
    parse = (resp, options) -> resp
 
    ;; Create a new collection with an identical list of models as this one.
-   ;; NOTE: This is originally `clone` in the Backbone API.
+   ;; Using Symbol unquote due to internal EG clone
    (^Symbol.clone)() = Saucer.Collection(@models) with
       {model = @model, comparator = @comparator}
 
