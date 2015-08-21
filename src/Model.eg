@@ -18,9 +18,7 @@ globals: encode-URI-component
 ;; is automatically generated and assigned for you.
 module.exports = class Model < Events:
 
-   constructor(attributes, var options) =
-      var attrs = attributes or {=}
-      options = options or {=}
+   constructor(var attrs = {=}, options = {=}) =
       @cid = unique-id(@cid-prefix)
       @attributes = {=}
       if options.collection: @collection = options.collection
