@@ -11,20 +11,80 @@ require:
 
 init-one-col = Saucer.Collection()
 
-class InitOneMod < Saucer.Model:
+class InitOneModel < Saucer.Model:
    constructor() = Saucer.Model.apply(@, arguments)
-
-   one = null
-
    initialize = ->
       @one = 1
       assert @collection == init-one-col
 
+class InitTwoModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   initialize = (attributes, options) ->
+      @one = options.one
+
+class InitParseModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   parse = attrs -> [attrs.value += 1; attrs]
+
+class InitDefaultModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   defaults = {
+      first-name = .Unknown
+      last-name  = .Unknown
+   }
+
+class ParseNullModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   parse = attrs -> [attrs.value += 1; null]
+
+class Proxy < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+class Klass < Saucer.Collection:
+   url = -> "/collection"
+
+
 describe "Saucer.Model":
+   before:
+      @doc = Proxy() with {
+         id     = '1-the-tempest'
+         title  = "The Tempest"
+         author = "Bill Shakespeare"
+         length = 123
+      }
+      @collection = Klass();
+      @collection.add(@doc);
 
    it "initializes":
-
-      m = InitOneMod({}, {collection = init-one-col})
-
+      m = InitOneModel({=}, {collection = init-one-col})
       assert m.one == 1
       assert m.collection == init-one-col
+
+   it "initializes with attributes and options":
+      m = InitTwoModel({=}, {one = 1})
+      assert m.one == 1
+
+   it "initializes with parsed attributes":
+      m = InitParseModel({value = 1}, {parse = true})
+      assert m.get(.value) == 2
+
+   it "initializes with defaults":
+      m = InitDefaultModel({first-name = .John})
+      assert m.get(.first-name) == .John
+      assert m.get(.last-name)  == .Unknown
+
+   it "can return null with `parse`":
+      m = ParseNullModel({value = 1}, {parse = true})
+      assert JSON.stringify(m.to-JSON()) == "{}"
+
+   it "provides a `url` function for building model representations":
+      @doc.url-root = null
+      assert @doc.url() == "/collection/1-the-tempest"
+      @doc.collection.url = "/collection/"
+      assert @doc.url() == "/collection/1-the-tempest"
+      @doc.collection = null
+      try:
+         @doc.url()
+      catch e:
+         print e
+         assert not undefined? e
+      @doc.collection = @collection
