@@ -12,14 +12,18 @@ require:
 init-one-col = Saucer.Collection()
 
 class InitOneMod < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+
+   one = null
+
    initialize = ->
-      print "Initializing..."
       @one = 1
       assert @collection == init-one-col
 
 describe "Saucer.Model":
 
-   it "can initialize":
+   it "initializes":
+
       m = InitOneMod({}, {collection = init-one-col})
 
       assert m.one == 1
