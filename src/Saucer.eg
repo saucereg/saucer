@@ -2,10 +2,12 @@ require:
    jquery as $
    ./Events
    ./Model
+   ./Collection
 
 class SaucerClass < Events:
    $ = $
    Events = Events
    Model = Model
+   Collection = Collection
 
 module.exports = SaucerClass()
