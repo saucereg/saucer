@@ -39,7 +39,7 @@ Soon there will be documentation available to guide you through using Saucer.
 
 ## Status
 
-__Saucer is not currently finished.__ Please be aware of that when downloading this project. Most recently, the Events API was completed and tested.  Still much more work to go.
+__Saucer is not currently finished.__ Please be aware of that when downloading this project. Most recently, Models and Collections have been written but testing is still in planning (trying to work out the best way to test with classes).
 
 ## Usage
 ### Install
