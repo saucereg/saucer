@@ -9,10 +9,18 @@ require:
    underscore -> {size, debounce}
    ../src/Saucer
 
-class CounterClass < Saucer.Events:
-   counter = 0
+init-one-col = Saucer.Collection()
 
-class Book < Saucer.Model:
-
+class InitOneMod < Saucer.Model:
+   initialize = ->
+      print "Initializing..."
+      @one = 1
+      assert @collection == init-one-col
 
 describe "Saucer.Model":
+
+   it "can initialize":
+      m = InitOneMod({}, {collection = init-one-col})
+
+      assert m.one == 1
+      assert m.collection == init-one-col
