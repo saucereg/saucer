@@ -3,7 +3,7 @@ require:
       extend, defaults, some, invoke, clone as _clone
    ./Model
    ./Events
-   ./util/Collection ->
+   ./util/collection-helpers ->
       default-add-opts, default-set-opts, place-within
    ./util/model-helpers ->
       wrap-error

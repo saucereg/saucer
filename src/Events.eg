@@ -4,7 +4,7 @@ require:
       once as _once
       is-empty, size
       unique-id
-   ./util/Events ->
+   ./util/events-helpers ->
       internal-on, events-api, on-api, off-api, trigger-api, once-map
 
 ;; Saucer.Events
