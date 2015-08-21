@@ -1,0 +1,286 @@
+require:
+   underscore ->
+      extend, defaults, some, invoke
+   ./Saucer
+   ./util/Collection ->
+      default-add-opts, default-set-opts, place-within, copy as _clone
+   ./util/Model ->
+      wrap-error
+
+;; Backbone.Collection
+;; -------------------
+
+;; If models tend to represent a single row of data, a Backbone Collection is
+;; more analogous to a table full of data ... or a small slice or page of that
+;; table, or a collection of rows that belong together for a particular reason
+;; -- all of the messages in this particular folder, all of the documents
+;; belonging to this particular author, and so on. Collections maintain
+;; indexes of their models, both in order, and for lookup by `id`.
+module.exports = class Collection < Saucer.Events:
+
+   ;; Create a new **Collection**, perhaps to contain a specific type of `model`.
+   ;; If a `comparator` is specified, the Collection will maintain
+   ;; its models in sort order, as they're added and removed.
+   constructor(models, var options = {=}) =
+      if options.model as @model: pass
+      if not undefined? options.comparator: @comparator = options.comparator
+      @_reset()
+      @initialize.apply(@, arguments)
+      if models: @reset(models, extend({silent = true}, options))
+
+   ;; The default model for a collection is just a **Saucer.Model**. This should
+   ;; be overridden in most cases.
+   model = Saucer.Model
+
+   ;; Initialize is an empty function by default.  Override it with your own
+   ;; initialization logic.
+   initialize = -> pass
+
+   ;; The JSON representation of a Collection is an array of the models'
+   ;; attributes.
+   to-JSON = opts -> @map(model -> model.to-JSON(opts))
+
+   ;; Proxy `Saucer.Sync` by default
+   sync = -> pass
+   ;; TODO: add Sync here
+   ;; FIXME: Figure out how to only proxy if present.
+
+   ;; Add a model, or list of models to the set.  `models` may be Saucer Models
+   ;; or raw Earl Grey objects to be converted to Models, or any combination of
+   ;; the two.
+   add = (models, opts) ->
+      @set(models, extend({merge = false}, opts, default-add-opts))
+
+   ;; Remove a model, or a list of models from the set
+   remove = (var models, opts = {=}) ->
+      singular = not Array? models
+      models = if {singular; {models}; _clone(models)}
+      removed = @_remove-models(models, opts)
+      if not opts.silent and removed: @trigger(.update, @, opts)
+      if {singular; removed[0]; removed}
+
+   ;; Update a collection by `set`-ing a new list of models, adding new ones,
+   ;; removing models that are no longer present, and merging models that
+   ;; already exist in the collection, as necessary.  Similar to **Model#set**,
+   ;; the core operation for updating the data contained by the collection.
+   set = (var models, opts) ->
+      if null? models: return
+
+      options = defaults({=}, opts, default-set-opts)
+      if options.parse and not @_is-model(models):
+         models = @parse(models, options)
+
+      singular = not Array? models
+      models = if {singular; {models}; models.splice()}
+
+
+      var at = options.at
+      if not null? at: at = Number! at
+      if at < 0: at += @length + 1
+
+      {set, to-add, to-remove, model-map} = {{}, {}, {}, {=}}
+
+      options as {=> add, => merge, => remove}
+
+      var sort = false
+      sortable = @comparator and null? at and not false? options.sort
+      sort-attr = if {String? @comparator; @comparator; null}
+
+      ;; Turn bare objects int model references, and prevent invalid models
+      ;; from being added
+      models each var model ->
+
+         ;; If a duplicate is found, prevent it from being added and optionally
+         ;; merge it into the existing model.
+         if @get(model) as existing:
+            if merge and model != existing:
+               var attrs = if {@is-model(model); model.attributes; model}
+               if options.parse: attrs = existing.parse(attrs, options)
+               existing.set(attrs, options)
+               if sortable and not sort: sort = existing.has-changed(sort-attr)
+            if not model-map[existing.cid]:
+               model-map[existing.cid] = true
+               set.push(existing)
+            model = existing
+
+         ;; If this is a new valid model, push it to the `to-add` list.
+         elif add:
+            model = @_prepare-model(model, options)
+            if model:
+               to-add.push(model)
+               @_add-reference(model, options)
+               model-map[model.cid] = true
+               set.push(model)
+
+      ;; Remove stale models.
+      if remove:
+         @models each model ->
+            if not model-map[model.cid]: to-remove.push(model)
+         if to-remove.length: @_remove-models(to-remove, options)
+
+      var order-changed = false
+      replace = not sortable and add and remove
+      if set.length and replace:
+         order-changed = @length != set.length or some(@models) with
+            (model, index) -> model != set[index]
+         @models.length = 0
+         place-within(@models, 0) with set
+      elif to-add.length:
+         if sortable: sort = true
+         place-within(@models, to-add, if {null? at; @length; at})
+         @length = @models.length
+
+      ;; Silently sort the collection if appropriate
+      if sort: @sort with {silent = true}
+
+      ;; Unless silenced, it's time to fire all appropriate add/sort events
+      if not options.silent:
+         0..to-add.length each i ->
+            if not null? at: options.index = at + i
+            model = to-add[i]
+            model.trigger(.add, model, @, options)
+         if sort or order-changed: @trigger(.sort, @, options)
+         if to-add.length or to-remove.length: @trigger(.update, @, options)
+
+      ;; Return the added (or merged) model (or models).
+      if {singular; models[0]; models}
+
+      ;; When you have more items than you want to add or remove individually,
+      ;; you can reset the entire set with a new list of models,  without firing
+      ;; any granular `add` or `remove` events.  fires `reset` when finished.
+      ;; Useful for bulk operations and optimizations.
+      reset = (var models, var options) ->
+         options = if {options; _clone(options); {=}}
+         @models each model -> @_remove-reference(model, options)
+         options.previous-models = @models
+         @_reset()
+         models = @add(models, extend({silent = true}, options))
+         if not options.silent: @trigger(.reset, @, options)
+         models
+
+      ;; Add a model to the end of the collection.
+      push = (model, options) -> @add(model) with extend {at = @length}: options
+
+      ;; Remove a model from the end of the collection
+      pop = options -> @remove(@at(@length - 1), options)
+
+      ;; Add a model to the beginning of the collection
+      unshift = (model, options) -> @add(model) with extend {at = 0}: options
+
+      ;; Remove a model from the beginning of the collection
+      shift = options -> @remove(@at(0), options)
+
+      ;; Get a model from the set by id
+      get = obj ->
+         if null? obj: return undefined
+         id = @model-id(if {@is-model(obj); obj.attributes; obj})
+         @_by-id[obj] or @_by-id[id] or @_by-id[obj.cid]
+
+      ;; Get the model at the given index
+      at = var index -> [if index < 0: index += @length; @models[index]]
+
+      ;; Return models with matching attributes.  Useful for simple cases of
+      ;; `filter`.
+      wherein = (attrs, first) -> @[if {first; .find; .filter}](attrs)
+
+      ;; Return the first model with matching attributes.  useful for simple
+      ;; cases of `find`.
+      find-wherein = attrs -> @wherein(attrs, true)
+
+      ;; Force the collection to re-sort itself.  You don't need to call this
+      ;; under normal circumstances,  as the set will maintain sort order as
+      ;; each item is added.
+      sort = (options = {=}) ->
+         var comparator = @comparator
+         if not comparator:
+            throw E.Saucer.Collection.sort("Cannot sort a set without a comparator")
+
+         length = comparator.length
+         if Function? comparator: comparator = @bind(comparator, @)
+
+         ;; Run sort based on type of `comparator`
+         if length == 1 or String? comparator: @models = @sort-by(comparator)
+         else: @models.sort(comparator)
+         if not options.silent: @trigger(.sort, @, options)
+         @
+
+      ;; Pluck an attribute from each model in the collection
+      pluck = attr -> invoke(@models, .get, attr)
+
+      ;; Fetch the default set of models for this collection,  resetting the
+      ;; collection when they arrive.  If `reset = true` is passed, the response
+      ;; data will be passed through the `reset` method instead of `set`.
+      fetch = (var options) ->
+         options = extend {parse = true}: options
+         success = options.success
+         collection = this
+         options.success = resp ->
+            resp-method = if {options.reset; .reset; .set}
+            collection[resp-method](resp, options)
+            if success: success.call(options.context, collection, resp, options)
+            collection.trigger(.sync, collection, resp, options)
+         wrap-error(@, options)
+         @sync(.read, @, options)
+
+      ;; Create a new instance of a model in this collection.  Add the model to
+      ;; the collection immediately, unless `wait = true` is passed, in which
+      ;; case we wait for the server to agree.
+      create = (var model, var options) ->
+         options = if {options; _clone(options); {=}}
+         options as {=> wait, => success}
+         model = @_prepare-model(model, options)
+         if not model: return false
+         if not wait: @add(model, options)
+         collection = this
+         options.success = (model, resp, cb-opts) ->
+            if wait: collection.add(model, cb-opts)
+            if success: success.call(cb-opts.context, model, resp, cb-opts)
+         model.save(null, options)
+         model
+
+      ;; **parse** converts a response into a list of models to be added to the
+      ;; collection.  The default implementation is just to pass it through.
+      parse = (resp, options) -> resp
+
+      ;; Create a new collection with an identical list of models as this one.
+      ;; NOTE: This is originally `clone` in the Backbone API.
+      (^Symbol.clone)() = Saucer.Collection(@models) with
+         {model = @model, comparator = @comparator}
+
+      ;; Define how to uniquely identify models in the collection.
+      model-id = attrs -> attrs[@model.id-attribute] or .id
+
+      ;; Private method to reset all internal state.  Called whn the colleciton
+      ;; is first initialized or reset.
+      _reset = -> [@length = 0; @models = {}; _by-id = {=}]
+
+      ;; Prepare a hash of attributes (or other model) to be added to this
+      ;; collection.
+      _prepare-model = (attrs, var options) ->
+         if @_is-model(attrs):
+            if not attrs.collection: attrs.collection = @
+            return attrs
+         options = if {options; _clone(options); {=}}
+         options.collection = this
+         model = @model(attrs, options)
+         if not model.validation-error: return model
+         @trigger(.invalid, @, model.validation-error, options)
+         false
+
+      ;; Internal method called by both `remove` and `set`.
+      _remove-models = (models, options) ->
+         removed = {}
+         models each m and model is @get(m) ->
+            if not model: continue
+
+            index = @index-of(model)
+            @models.splice(index, 1)
+            @length -= 1
+
+            if not options.silent:
+               options.index = index
+               model.trigger(.remove, model @, options)
+
+            removed.push(model)
+            @_remove-reference(model, options)
+         if {removed.length; removed; false}

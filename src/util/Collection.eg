@@ -1,0 +1,17 @@
+require: underscore
+provide:
+   default-set-opts, default-add-opts, place-within, copy
+
+;; Default options for `Collection#set`.
+default-set-opts = {add = true, remove = true, merge = true}
+default-add-opts = {add = true, remove = false}
+
+;; Splices `insert` into `array` at index `at`
+place-within = (array, at, insert) ->
+   tail = Array{array.length - at}
+   0..tail.length   each i -> tail[i] = array[i + at]
+   0..insert.length each i -> array[i + at] = insert[i]
+   0..tail.length   each i -> array[i + insert.length + at] = tail[i]
+
+;; Rewrite of `_.clone` to not interfere with `Collection#clone`.
+copy = obj -> underscore.clone(obj)
