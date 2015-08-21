@@ -284,3 +284,35 @@ module.exports = class Collection < Saucer.Events:
          removed.push(model)
          @_remove-reference(model, options)
       if {removed.length; removed; false}
+
+   ;; Method for checking whether an object should be considered a model for
+   ;; the purpose of adding to the collection.
+   _is-model = model -> instanceof(model, Saucer.Model)
+
+   ;; Internal method to create a model's ties to a collection
+   _add-reference = (model, options) ->
+      @by-id[model.cid] = model
+      id = @model-id(model.attributes)
+      if not null? id: @by-id[id] = model
+      model.on(.all, @_on-model-event, @)
+
+   ;; Internal method to sever a model's ties to a collection
+   _remove-reference = (model, options) ->
+      delete @by-id[model.cid]
+      id = @model-id(model.attributes)
+      if not null? id: delete @by-id[id]
+      if this === model.collection: delete model.collection
+      model.off(.all, @_on-model-event, @)
+
+   _on-model-event = (match, model, collection, options) ->
+      .add or .remove when collection !== this -> return
+      .destroy ->
+         @remove(model, options)
+         @trigger.apply(@, arguments)
+      .change ->
+         prev-id = @model-id(model.previous-attributes())
+         id      = @model-id(model.attributes())
+         if (prev-id !== id):
+            if not null? prev-id: delete @by-id[prev-id]
+            if not null? id: @by-id[id] = model
+         @trigger.apply(@, arguments)
