@@ -1,0 +1,18 @@
+
+require-macros:
+   earl-mocha ->
+      describe, it, before, after
+      xdescribe, xit
+      assert, asserts
+
+require:
+   underscore -> {size, debounce}
+   ../src/Saucer
+
+class CounterClass < Saucer.Events:
+   counter = 0
+
+class Book < Saucer.Model:
+
+
+describe "Saucer.Model":
