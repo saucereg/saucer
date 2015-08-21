@@ -40,6 +40,7 @@ class ParseNullModel < Saucer.Model:
 class Proxy < Saucer.Model:
    constructor() = Saucer.Model.apply(@, arguments)
 class Klass < Saucer.Collection:
+   constructor() = Saucer.Collection.apply(@, arguments)
    url = -> "/collection"
 
 
@@ -85,6 +86,5 @@ describe "Saucer.Model":
       try:
          @doc.url()
       catch e:
-         print e
          assert not undefined? e
       @doc.collection = @collection

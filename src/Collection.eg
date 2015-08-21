@@ -72,9 +72,7 @@ module.exports = class Collection < Events:
       if options.parse and not @_is-model(models):
          models = @parse(models, options)
 
-      singular = not Array? models
-      models = if {singular; {models}; models.splice()}
-
+      models = if {not Array? models; {models}; models.splice()}
 
       var at = options.at
       if not null? at: at = Number! at
@@ -91,10 +89,9 @@ module.exports = class Collection < Events:
       ;; Turn bare objects int model references, and prevent invalid models
       ;; from being added
       models each var model ->
-
-         ;; If a duplicate is found, prevent it from being added and optionally
-         ;; merge it into the existing model.
          if @get(model) as existing:
+            ;; If a duplicate is found, prevent it from being added and optionally
+            ;; merge it into the existing model.
             if merge and model != existing:
                var attrs = if {@is-model(model); model.attributes; model}
                if options.parse: attrs = existing.parse(attrs, options)
@@ -104,9 +101,8 @@ module.exports = class Collection < Events:
                model-map[existing.cid] = true
                set.push(existing)
             model = existing
-
-         ;; If this is a new valid model, push it to the `to-add` list.
-         elif add:
+         elif true? add:
+            ;; If this is a new valid model, push it to the `to-add` list.
             model = @_prepare-model(model, options)
             if model:
                to-add.push(model)
@@ -145,7 +141,7 @@ module.exports = class Collection < Events:
          if to-add.length or to-remove.length: @trigger(.update, @, options)
 
       ;; Return the added (or merged) model (or models).
-      if {singular; models[0]; models}
+      if {not Array? models; models[0]; models}
 
    ;; When you have more items than you want to add or remove individually,
    ;; you can reset the entire set with a new list of models,  without firing
@@ -175,20 +171,9 @@ module.exports = class Collection < Events:
    ;; Get a model from the set by id
    get = match s ->
       null?                               -> undefined
-      String? s                           ->
-         print 'Getting with a string: {s}'
-         @_by-id[s]
-      Model? m                            ->
-         print 'Getting with a model'
-         print m
-         @_by-id[m.cid]
-      m and id is @model-id(m.attributes) ->
-         print "Getting with something else"
-         print m
-         @_by-id[id]
-         ;;
-         ;;id = @model-id(if {@_is-model(obj); obj.attributes; obj})
-         ;;@_by-id[id] or @_by-id[obj.cid]
+      String? s                           -> @_by-id[s]
+      Model? m                            -> @_by-id[m.cid]
+      m and id is @model-id(m.attributes) -> @_by-id[id]
 
    ;; Get the model at the given index
    at = var index -> [if index < 0: index += @length; @models[index]]
@@ -262,7 +247,7 @@ module.exports = class Collection < Events:
       {model = @model, comparator = @comparator}
 
    ;; Define how to uniquely identify models in the collection.
-   model-id = attrs -> attrs[@model.prototype.id-attribute] or .id
+   model-id = attrs -> attrs[@model.id-attribute] or .id
 
    ;; Private method to reset all internal state.  Called whn the colleciton
    ;; is first initialized or reset.
@@ -272,7 +257,7 @@ module.exports = class Collection < Events:
    ;; collection.
    _prepare-model = (attrs, var options) ->
       if @_is-model(attrs):
-         if not attrs.collection: attrs.collection = @
+         if not attrs.collection: attrs.collection = this
          return attrs
       options = if {options; _clone(options); {=}}
       options.collection = this
