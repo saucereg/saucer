@@ -74,7 +74,7 @@ module.exports = class Model < Events:
    ;; core primitive operation of a model,  updating the data and notifying
    ;; anyone who needs to know about the change in state.  The heart of the
    ;; beast.
-   set = (key, val, var options = {=}) ->
+   set = (key, val = undefined, var options = {=}) ->
       if null? key: return this
 
       ;; Handle both `"key", value` and `{key = value}` style arguments
@@ -84,7 +84,7 @@ module.exports = class Model < Events:
 
       ;; Run validation
       if not @_validate(attrs, options): return false
-      {unset, silent} = {options.unset, options.silent}
+      {unset, silent} = {options??.unset, options??.silent}
       changes = {}
       changing = @_changing
       @_changing = true
@@ -269,10 +269,13 @@ module.exports = class Model < Events:
    ;; Run validation against the next complete set of model attributes,
    ;; returning `true` if all is well.  Otherwise, fire an "invalid" event.
    _validate = (var attrs, opts) ->
-      if not opts.validate or not @validate: return true
-      attrs = extend({}, @attributes, attrs)
-      error and @validation-error = @validate(attrs, opts) or null
-      if not error: true
+      v = opts??.validate or @validate
+      if null? v or undefined? v:
+         true
       else:
-         @trigger(.invalid, @, error, extend(opts, {validation-error = error}))
-         false
+         attrs = {{} & @attributes} & attrs
+         error and @validation-error = @validate(attrs, opts) or null
+         if not error: true
+         else:
+            @trigger(.invalid, @, error, opts & {validation-error = error})
+            false
