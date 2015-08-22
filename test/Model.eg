@@ -37,23 +37,7 @@ class ParseNullModel < Saucer.Model:
    constructor() = Saucer.Model.apply(@, arguments)
    parse = attrs -> [attrs.value += 1; null]
 
-class Proxy < Saucer.Model:
-   constructor() = Saucer.Model.apply(@, arguments)
-class Klass < Saucer.Collection:
-   constructor() = Saucer.Collection.apply(@, arguments)
-   url = -> "/collection"
-
-
 describe "Saucer.Model":
-   before:
-      @doc = Proxy() with {
-         id     = '1-the-tempest'
-         title  = "The Tempest"
-         author = "Bill Shakespeare"
-         length = 123
-      }
-      @collection = Klass();
-      @collection.add(@doc);
 
    it "initializes":
       m = InitOneModel({=}, {collection = init-one-col})
@@ -77,7 +61,31 @@ describe "Saucer.Model":
       m = ParseNullModel({value = 1}, {parse = true})
       assert JSON.stringify(m.to-JSON()) == "{}"
 
-   it "provides a `url` function for building model representations":
+
+class Proxy < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+class Klass < Saucer.Collection:
+   constructor() = Saucer.Collection.apply(@, arguments)
+   url = -> "/collection"
+class UrlRootModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   url-root = '/collection'
+class UrlRootFnModel < Saucer.Model:
+   constructor() = Saucer.Model.apply(@, arguments)
+   url-root = -> '/nested/{@get(.parent-id)}/collection'
+
+describe "Saucer.Model.url()":
+   before:
+      @doc = Proxy() with {
+         id     = '1-the-tempest'
+         title  = "The Tempest"
+         author = "Bill Shakespeare"
+         length = 123
+      }
+      @collection = Klass();
+      @collection.add(@doc);
+
+   it "builds model representations as urls":
       @doc.url-root = null
       assert @doc.url() == "/collection/1-the-tempest"
       @doc.collection.url = "/collection/"
@@ -88,3 +96,15 @@ describe "Saucer.Model":
       catch e:
          assert not undefined? e
       @doc.collection = @collection
+
+   it "can be used with url-root and url-encoding":
+      m = UrlRootModel()
+      assert m.url() == '/collection'
+      m.set({id = "+1+"})
+      assert m.url() == '/collection/%2B1%2B'
+
+   it "can access url-root as a function":
+      m = UrlRootFnModel({parent-id = 1})
+      assert m.url() == '/nested/1/collection'
+      m.set({id = 2})
+      assert m.url() == '/nested/1/collection/2'
