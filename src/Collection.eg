@@ -133,10 +133,9 @@ module.exports = class Collection < Events:
 
       ;; Unless silenced, it's time to fire all appropriate add/sort events
       if not options.silent:
-         0..to-add.length each i ->
+         0...to-add.length each i ->
             if Number? at: options.index = at + i
-            model = to-add[i]
-            model.trigger(.add, model, @, options)
+            model.trigger(.add, model, @, options) where model = to-add[i]
          if sort or order-changed: @trigger(.sort, @, options)
          if to-add.length or to-remove.length: @trigger(.update, @, options)
 
