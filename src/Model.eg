@@ -65,7 +65,7 @@ module.exports = class Model < Events:
 
    ;; Returns `true` if the attribute contains a value that is not null
    ;; or undefined.
-   has = attr -> not null? @get(attr)
+   has = attr -> not @get(attr) in {null, undefined}
 
    ;; Special-cased proxy to underscore's `_.matches` method
    matches = attrs -> Boolean! iteratee(attrs, @)(@attributes)
@@ -246,9 +246,12 @@ module.exports = class Model < Events:
    ;; that will be called.
    url = ->
       base = result(@, .url-root) or result(@collection, .url)
-      \ or throw E.url-error('A "url" property or function must be specified')
+      if not base:
+         throw E.Saucer.Model.url('A "url" prop or fn must be specified')
       if @is-new(): return base
-      base.replace(R"[^\/]$", '$&/') + encode-URI-component(@get(@id-attribute))
+      else:
+         base.replace(R"[^\/]$", '$&/')
+         \ + encode-URI-component(@get(@id-attribute))
 
    ;; **parse** converts a response into the hash of attributes to be `set` on
    ;; the model.  The default implementation is just to pass the response along.
