@@ -108,3 +108,57 @@ describe "Saucer.Model.url()":
       assert m.url() == '/nested/1/collection'
       m.set({id = 2})
       assert m.url() == '/nested/1/collection/2'
+
+describe "Saucer.Model.clone()":
+
+   it "creates a copy of a model":
+      a = Saucer.Model() with { foo = 1, bar = 2, baz = 3 }
+      b = a.clone()
+      asserts:
+         a.get(.foo) == 1
+         a.get(.bar) == 2
+         a.get(.baz) == 3
+         b.get(.foo) == a.get(.foo)
+         b.get(.bar) == a.get(.bar)
+         b.get(.baz) == a.get(.baz)
+      a.set({foo = 100})
+      asserts:
+         a.get(.foo) == 100
+         b.get(.foo) == 1
+
+      foo = Saucer.Model() with { p = 1 }
+      bar = Saucer.Model() with { p = 2 }
+      bar.set(foo.clone().attributes, {unset = true})
+      asserts:
+         foo.get(.p) == 1
+         bar.get(.p) == undefined
+
+describe "Saucer.Model.is-new()":
+
+   it "checks if a Model has a set `id` or not":
+      a = Saucer.Model() with { foo = 1, bar = 2, baz = 3}
+      assert a.is-new() == true
+
+   it "will return true no matter if the id is negative or positive":
+      a = Saucer.Model() with { foo = 1, bar = 2, baz = 3, id = -5 }
+      assert a.is-new() != true
+
+   it "will return true even if the id is zero":
+      a = Saucer.Model() with { foo = 1, bar = 2, baz = 3, id = 0 }
+      assert a.is-new() != true
+
+describe "Saucer.Model.get()":
+   before:
+      @doc = Proxy() with {
+         id     = '1-the-tempest'
+         title  = "The Tempest"
+         author = "Bill Shakespeare"
+         length = 123
+      }
+
+   it "gets an attribute by the attributes name":
+      assert @doc.get(.title) == "The Tempest"
+      assert @doc.get(.author) == "Bill Shakespeare"
+
+   it "returns undefined if there is no attribute by that name":
+      assert @doc.get(.not-an-attribute) == undefined
