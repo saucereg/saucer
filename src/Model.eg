@@ -75,16 +75,16 @@ module.exports = class Model < Events:
    ;; anyone who needs to know about the change in state.  The heart of the
    ;; beast.
    set = (key, val = undefined, var options = {=}) ->
-      if null? key: return this
+      if null? key or undefined? key: return this
 
       ;; Handle both `"key", value` and `{key = value}` style arguments
       attrs =
          if Object? key: [options = val; key]
-         else: {}[key] = val
+         else: { '{key}' => val }
 
       ;; Run validation
       if not @_validate(attrs, options): return false
-      {unset, silent} = {options??.unset, options??.silent}
+      {Boolean! unset, Boolean! silent} = {options??.unset, options??.silent}
       changes = {}
       changing = @_changing
       @_changing = true
@@ -97,10 +97,19 @@ module.exports = class Model < Events:
       ;; For each `set` attribute, update or delete the current vale
       for attr in attrs:
          let val = attrs[attr]
-         if not is-equal(current[attr], val): changes.push(attr)
-         if not is-equal(prev[attr], val):    changed[attr] = val
-         else: delete changed[attr]
-         if {unset; delete current[attr]; current[attr] = val}
+
+         if not is-equal(current[attr], val):
+            changes.push(attr)
+
+         if not is-equal(prev[attr], val):
+            changed[attr] = val
+         else:
+            delete changed[attr]
+
+         if unset:
+            delete current[attr]
+         else:
+            current[attr] = val
 
       ;; Update the `id`
       @id = @get(@id-attribute)
@@ -123,11 +132,10 @@ module.exports = class Model < Events:
 
    ;; Remove an attribute from the model, firing `"change"`. `unset` is a noop
    ;; if the attribute doesn't exist.
-   unset = (attr, opts) ->
-      @set(attr, undefined, extend({}, opts, {unset = true}))
+   unset = (attr, opts) -> @set(attr, undefined, {{} & opts} & { unset = true })
 
    ;; Clear all attributes on the model, firing `"change"`.
-   clear = opts -> @set(attrs, extend({}, opts, {unset = true})) where
+   clear = opts -> @set(attrs, (({} & opts) & {unset = true})) where
       attrs = [a = {=}; for key in @attributes: a[key] = undefined; a]
 
    ;; Determine if the model has changed since the last `"change"` event. If

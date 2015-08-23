@@ -162,3 +162,29 @@ describe "Saucer.Model.get()":
 
    it "returns undefined if there is no attribute by that name":
       assert @doc.get(.not-an-attribute) == undefined
+
+describe "Saucer.Model.escape()":
+   before:
+      @doc = Proxy() with {
+         id     = '1-the-tempest'
+         title  = "The Tempest"
+         author = "Bill Shakespeare"
+         length = 123
+      }
+
+   it "passes plain text through":
+      assert @doc.escape(.title) == "The Tempest"
+      @doc.set({audience = "Bill & Bob"})
+
+   it "escapes to html codes when needed":
+      assert @doc.escape(.audience) == "Bill &amp; Bob"
+      @doc.set({audience = "Tim > Joan"})
+      assert @doc.escape(.audience) == "Tim &gt; Joan"
+
+   it "converts numbers to strings":
+      @doc.set with {audience = 10101}
+      assert @doc.escape(.audience) == "10101"
+
+   it "returns an empty string if undefined":
+      @doc.unset(.audience)
+      assert @doc.escape(.audience) == ""
