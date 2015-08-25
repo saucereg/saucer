@@ -188,3 +188,61 @@ describe "Saucer.Model.escape()":
    it "returns an empty string if undefined":
       @doc.unset(.audience)
       assert @doc.escape(.audience) == ""
+
+describe "Saucer.Model.has()":
+
+   it "checks if a model has an attribute":
+      m = Saucer.Model()
+
+      assert m.has(.name) === false
+
+      m.set with {
+         "0"         => 0
+         "1"         => 1
+         "true"      => true
+         "false"     => false
+         "empty"     => ""
+         "name"      => .name
+         "null"      => null
+         "undefined" => undefined
+      }
+
+      asserts:
+         m.has("0")     === true
+         m.has("1")     === true
+         m.has("true")  === true
+         m.has("false") === true
+         m.has("empty") === true
+         m.has("name")  === true
+
+      m.unset(.name)
+
+      asserts:
+         m.has("name")      === false
+         m.has("null")      === false
+         m.has("undefined") === undefined
+
+describe "Saucer.Model.matches()":
+
+   it "returns false if a list of attrs doesn't match the model":
+      m = Saucer.Model()
+      assert m.matches({name = .Jonas, cool = true}) === false
+
+   it "returns true if the given attrs match the model":
+      m = Saucer.Model().set with {name = .Jonas, cool = true}
+      asserts:
+         m.matches({name = .Jonas})              === true
+         m.matches({name = .Jonas, cool = true}) === true
+
+   it "returns false if the keys match but the values do not":
+      m = Saucer.Model() with {name = .Jonas, cool = true}
+      asserts:
+         m.matches({name = .Jonas, cool = false}) === false
+         m.matches({name = .Jacob, cool = true})  === false
+
+   it "can be called with a predicate function to determine a match":
+      m = Saucer.Model({a = 0})
+      assert m.matches(attr -> attr.a > 1 and not null? attr.b) === false
+
+      m.set({a = 3, b = true})
+      assert m.matches(attr -> attr.a > 1 and not null? attr.b) === true
